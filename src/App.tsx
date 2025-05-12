@@ -16,7 +16,7 @@ import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
-// Protected route component for admin access
+// Protected route component for admin access - modified to not redirect immediately
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, isAdmin } = useAuth();
   
@@ -24,17 +24,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     console.log("AdminRoute check:", { currentUser, isAdmin: isAdmin() });
   }, [currentUser]);
   
-  if (!currentUser) {
-    console.log("No user, redirecting to login");
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (!isAdmin()) {
-    console.log("User is not admin, redirecting to login");
-    return <Navigate to="/login" replace />;
-  }
-  
-  console.log("User is admin, rendering admin page");
+  // Always render Admin page - authentication will be handled inside the component
   return <>{children}</>;
 };
 
