@@ -43,6 +43,9 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
         const loginEmail = email === 'admin' ? 'admin@example.com' : email;
         const loginPassword = email === 'admin' ? 'adminpassword' : password;
         
+        // Garantir logout antes de fazer o novo login
+        await supabase.auth.signOut();
+        
         const { data, error } = await supabase.auth.signInWithPassword({
           email: loginEmail,
           password: loginPassword

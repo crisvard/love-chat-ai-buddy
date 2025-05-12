@@ -16,11 +16,18 @@ export const supabase = createClient<Database>(
     auth: {
       autoRefreshToken: true,
       persistSession: true,
+      detectSessionInUrl: true,
+      storage: localStorage
     },
     realtime: {
       params: {
         eventsPerSecond: 10,
       },
     },
+    global: {
+      headers: {
+        'x-application-name': 'admin-portal'
+      },
+    }
   }
 );
