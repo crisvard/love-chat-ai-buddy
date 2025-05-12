@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -975,4 +976,70 @@ const Admin = () => {
                             ) : (
                               <div className="grid gap-4">
                                 {agents.map((agent) => (
-                                  <div key={agent.id} className="grid grid-cols-5 items-center gap
+                                  <div key={agent.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
+                                    <Avatar className="h-10 w-10">
+                                      <img src={agent.image} alt={agent.name} />
+                                    </Avatar>
+                                    <Input
+                                      value={agent.name}
+                                      onChange={(e) => handleEditAgent(agent.id, "name", e.target.value)}
+                                    />
+                                    <select
+                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
+                                      value={agent.gender}
+                                      onChange={(e) => handleEditAgent(agent.id, "gender", e.target.value)}
+                                    >
+                                      <option value="female">Feminino</option>
+                                      <option value="male">Masculino</option>
+                                    </select>
+                                    <Input
+                                      value={agent.image}
+                                      onChange={(e) => handleEditAgent(agent.id, "image", e.target.value)}
+                                    />
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDeleteAgent(agent.id)}
+                                    >
+                                      Excluir
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="notifications">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Enviar Notificações</CardTitle>
+                      <CardDescription>Envie mensagens push para todos os usuários</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-4">
+                        <textarea
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 h-32"
+                          value={notification}
+                          onChange={(e) => setNotification(e.target.value)}
+                          placeholder="Digite a mensagem para enviar..."
+                        />
+                        <Button onClick={handleSendNotification}>Enviar para todos ({users.length})</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            )}
+          </main>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default Admin;
