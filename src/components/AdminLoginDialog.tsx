@@ -33,134 +33,54 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
     try {
       console.log(`Tentando login admin com: ${email}`);
       
-      // Verificar diretamente as credenciais de admin hardcoded
-      if (email === 'armempires@gmail.com' && password === 'mudar123') {
+      // Simplificado: verificar credenciais de admin diretamente
+      if ((email === 'armempires@gmail.com' && password === 'mudar123') || 
+          (email === 'admin' && password === 'admin')) {
+        
+        // Determinar qual email usar para login real
+        const loginEmail = email === 'admin' ? 'admin@example.com' : email;
+        const loginPassword = email === 'admin' ? 'adminpassword' : password;
+        
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email,
-          password: password
+          email: loginEmail,
+          password: loginPassword
         });
         
         if (error) {
-          console.error("Falha no login direto: ", error.message);
-          
-          // Tentar fallback login com admin@example.com
-          const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
-            email: 'admin@example.com',
-            password: 'adminpassword'
-          });
-          
-          if (adminError) {
-            throw new Error("Falha na autenticação de administrador. Verifique suas credenciais.");
-          } else {
-            console.log("Login admin bem-sucedido via fallback");
-            
-            // Configurar assinatura admin
-            if (adminData.user) {
-              try {
-                await supabase
-                  .from('user_subscriptions')
-                  .upsert({
-                    user_id: adminData.user.id,
-                    plan_id: 'admin',
-                    start_date: new Date().toISOString(),
-                    end_date: null,
-                    is_active: true
-                  }, { onConflict: 'user_id' });
-                  
-                console.log("Plano admin configurado com sucesso");
-                toast({
-                  title: "Login realizado",
-                  description: "Login de administrador bem-sucedido!",
-                });
-                onLoginSuccess();
-                return;
-              } catch (err) {
-                console.error("Erro ao configurar o plano admin:", err);
-              }
-            }
-          }
-        } else {
-          // Login direto bem-sucedido
-          console.log("Login direto de administrador bem-sucedido");
-          
-          // Garantir papel de administrador
-          if (data.user) {
-            try {
-              await supabase
-                .from('user_subscriptions')
-                .upsert({
-                  user_id: data.user.id,
-                  plan_id: 'admin',
-                  start_date: new Date().toISOString(),
-                  end_date: null,
-                  is_active: true
-                }, { onConflict: 'user_id' });
-                
-              console.log("Plano admin configurado com sucesso");
-            } catch (err) {
-              console.error("Erro ao configurar o plano admin:", err);
-            }
-          }
-          
-          toast({
-            title: "Login realizado",
-            description: "Login de administrador bem-sucedido!",
-          });
-          onLoginSuccess();
-          return;
-        }
-      }
-      
-      // Login admin especial (fallback)
-      if (email === 'admin' && password === 'admin') {
-        console.log("Tentando login admin especial");
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: 'admin@example.com', 
-          password: 'adminpassword'
-        });
-        
-        if (error) {
-          throw new Error("Falha na autenticação de administrador");
+          console.error("Erro de login:", error.message);
+          throw new Error("Falha na autenticação de administrador. Verifique suas credenciais.");
         }
         
-        console.log("Login admin bem-sucedido via credenciais especiais");
+        console.log("Login admin bem-sucedido");
+        
+        // Garantir papel de administrador
+        if (data.user) {
+          try {
+            await supabase
+              .from('user_subscriptions')
+              .upsert({
+                user_id: data.user.id,
+                plan_id: 'admin',
+                start_date: new Date().toISOString(),
+                end_date: null,
+                is_active: true
+              }, { onConflict: 'user_id' });
+              
+            console.log("Plano admin configurado com sucesso");
+          } catch (err) {
+            console.error("Erro ao configurar o plano admin:", err);
+          }
+        }
+        
         toast({
           title: "Login realizado",
           description: "Login de administrador bem-sucedido!",
         });
         onLoginSuccess();
         return;
+      } else {
+        throw new Error("Credenciais de administrador inválidas.");
       }
-      
-      // Tentativa de login padrão
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
-      
-      if (error) throw error;
-      
-      // Verificar se o usuário é admin via subscription
-      if (data.user) {
-        const { data: subscription, error: subError } = await supabase
-          .from('user_subscriptions')
-          .select('plan_id')
-          .eq('user_id', data.user.id)
-          .eq('plan_id', 'admin')
-          .single();
-        
-        if (subError || !subscription) {
-          throw new Error("Usuário não tem permissões de administrador");
-        }
-      }
-      
-      console.log("Login bem-sucedido");
-      toast({
-        title: "Login realizado",
-        description: "Login de administrador bem-sucedido!",
-      });
-      onLoginSuccess();
-      
     } catch (error: any) {
       console.error("Erro no login:", error);
       toast({

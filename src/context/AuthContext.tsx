@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
@@ -85,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   .from('profiles')
                   .select('*')
                   .eq('id', session.user.id)
-                  .single();
+                  .maybeSingle();
     
                 if (profileError) {
                   console.error("Error fetching profile:", profileError);
@@ -100,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 
                 setCurrentUser({
                   id: session.user.id,
-                  email: profile.email,
-                  name: profile.name,
+                  email: profile?.email || session.user.email || '',
+                  name: profile?.name || session.user.email?.split('@')[0] || 'User',
                   role: isAdminUser ? 'admin' : 'user'
                 });
               } catch (error: any) {
@@ -145,12 +146,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
           
           // Check admin status
           const isAdminUser = await checkIsAdmin(session.user.id);
           
-          if (profileError) {
+          if (profileError || !profile) {
             console.error("Error fetching profile:", profileError);
             setCurrentUser({
               id: session.user.id,

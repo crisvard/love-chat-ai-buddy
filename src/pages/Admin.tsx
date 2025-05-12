@@ -72,6 +72,7 @@ const Admin = () => {
       if (!currentUser) {
         console.log("Nenhum usuário autenticado, mostrando diálogo de login");
         setShowLoginDialog(true);
+        setIsLoading(false);
       } else {
         // Verificar explicitamente se o email é um dos emails admin conhecidos
         if (currentUser.email === "armempires@gmail.com" || currentUser.email === "admin@example.com") {
@@ -89,6 +90,7 @@ const Admin = () => {
         } else {
           console.log("Usuário não é administrador, mostrando diálogo de login");
           setShowLoginDialog(true);
+          setIsLoading(false);
         }
       }
     };
@@ -107,12 +109,19 @@ const Admin = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching admin data...");
+      
       // Fetch plans
       const { data: plansData, error: plansError } = await supabase
         .from('plans')
         .select('*');
         
-      if (plansError) throw plansError;
+      if (plansError) {
+        console.error("Error fetching plans:", plansError);
+        throw plansError;
+      }
+      
+      console.log("Plans data:", plansData);
       
       setPlans(plansData.map(plan => ({
         id: plan.id,
@@ -128,7 +137,12 @@ const Admin = () => {
         .from('gifts')
         .select('*');
         
-      if (giftsError) throw giftsError;
+      if (giftsError) {
+        console.error("Error fetching gifts:", giftsError);
+        throw giftsError;
+      }
+      
+      console.log("Gifts data:", giftsData);
       
       setGifts(giftsData.map(gift => ({
         id: gift.id,
@@ -142,7 +156,12 @@ const Admin = () => {
         .from('agents')
         .select('*');
         
-      if (agentsError) throw agentsError;
+      if (agentsError) {
+        console.error("Error fetching agents:", agentsError);
+        throw agentsError;
+      }
+      
+      console.log("Agents data:", agentsData);
       
       setAgents(agentsData.map(agent => ({
         id: agent.id,
@@ -156,13 +175,23 @@ const Admin = () => {
         .from('profiles')
         .select('*');
         
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
+        throw profilesError;
+      }
+      
+      console.log("Profiles data:", profilesData);
       
       const { data: subscriptionsData, error: subscriptionsError } = await supabase
         .from('user_subscriptions')
         .select('*');
         
-      if (subscriptionsError) throw subscriptionsError;
+      if (subscriptionsError) {
+        console.error("Error fetching subscriptions:", subscriptionsError);
+        throw subscriptionsError;
+      }
+      
+      console.log("Subscriptions data:", subscriptionsData);
       
       const usersList = profilesData.map(profile => {
         const subscription = subscriptionsData.find(sub => sub.user_id === profile.id);
@@ -198,12 +227,19 @@ const Admin = () => {
         updateData[field] = value;
       }
       
+      console.log(`Updating plan ${id}, field ${field} with value:`, updateData[field]);
+      
       const { error } = await supabase
         .from('plans')
         .update(updateData)
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating plan:", error);
+        throw error;
+      }
+      
+      console.log("Plan updated successfully");
       
       // Update local state
       setPlans((prevPlans) =>
@@ -235,6 +271,8 @@ const Admin = () => {
     }
 
     try {
+      console.log("Adding new gift:", newGift);
+      
       const { data, error } = await supabase
         .from('gifts')
         .insert({
@@ -244,7 +282,12 @@ const Admin = () => {
         })
         .select();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error adding gift:", error);
+        throw error;
+      }
+      
+      console.log("Gift added successfully:", data);
       
       // Add to local state
       setGifts([...gifts, {
@@ -272,12 +315,19 @@ const Admin = () => {
 
   const handleDeleteGift = async (id: string) => {
     try {
+      console.log("Deleting gift:", id);
+      
       const { error } = await supabase
         .from('gifts')
         .delete()
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting gift:", error);
+        throw error;
+      }
+      
+      console.log("Gift deleted successfully");
       
       // Update local state
       setGifts(gifts.filter((gift) => gift.id !== id));
@@ -306,17 +356,29 @@ const Admin = () => {
         updateData[field] = value;
       }
       
+      console.log(`Updating gift ${id}, field ${field} with value:`, updateData[field]);
+      
       const { error } = await supabase
         .from('gifts')
         .update(updateData)
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating gift:", error);
+        throw error;
+      }
+      
+      console.log("Gift updated successfully");
       
       // Update local state
       setGifts(
         gifts.map((gift) => (gift.id === id ? { ...gift, [field]: value } : gift))
       );
+      
+      toast({
+        title: "Presente atualizado",
+        description: "Presente atualizado com sucesso.",
+      });
     } catch (error) {
       console.error("Error updating gift:", error);
       toast({
@@ -338,6 +400,8 @@ const Admin = () => {
     }
 
     try {
+      console.log("Adding new agent:", newAgent);
+      
       const { data, error } = await supabase
         .from('agents')
         .insert({
@@ -347,7 +411,12 @@ const Admin = () => {
         })
         .select();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error adding agent:", error);
+        throw error;
+      }
+      
+      console.log("Agent added successfully:", data);
       
       // Add to local state
       const newAgentWithCorrectType: AgentProfile = {
@@ -377,12 +446,19 @@ const Admin = () => {
 
   const handleDeleteAgent = async (id: string) => {
     try {
+      console.log("Deleting agent:", id);
+      
       const { error } = await supabase
         .from('agents')
         .delete()
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting agent:", error);
+        throw error;
+      }
+      
+      console.log("Agent deleted successfully");
       
       // Update local state
       setAgents(agents.filter((agent) => agent.id !== id));
@@ -413,6 +489,8 @@ const Admin = () => {
         return;
       }
       
+      console.log(`Updating agent ${id}, field ${field} with value:`, value);
+      
       const updateData: any = {
         [field]: value
       };
@@ -422,7 +500,12 @@ const Admin = () => {
         .update(updateData)
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating agent:", error);
+        throw error;
+      }
+      
+      console.log("Agent updated successfully");
       
       // Update local state with type safety
       setAgents(
@@ -437,6 +520,11 @@ const Admin = () => {
           return agent;
         })
       );
+      
+      toast({
+        title: "Perfil atualizado",
+        description: "Perfil atualizado com sucesso.",
+      });
     } catch (error) {
       console.error("Error updating agent:", error);
       toast({
