@@ -12,6 +12,7 @@ import Chat from "./pages/Chat";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
@@ -19,10 +20,21 @@ const queryClient = new QueryClient();
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, isAdmin } = useAuth();
   
-  if (!currentUser || !isAdmin()) {
+  useEffect(() => {
+    console.log("AdminRoute check:", { currentUser, isAdmin: isAdmin() });
+  }, [currentUser]);
+  
+  if (!currentUser) {
+    console.log("No user, redirecting to login");
     return <Navigate to="/login" replace />;
   }
   
+  if (!isAdmin()) {
+    console.log("User is not admin, redirecting to login");
+    return <Navigate to="/login" replace />;
+  }
+  
+  console.log("User is admin, rendering admin page");
   return <>{children}</>;
 };
 

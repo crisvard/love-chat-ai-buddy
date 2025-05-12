@@ -36,6 +36,36 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
+  // Function to check if user is admin
+  const checkIsAdmin = async (userId: string): Promise<boolean> => {
+    try {
+      // First check if user email is a known admin email
+      const { data: userInfo } = await supabase.auth.getUser();
+      if (userInfo?.user?.email === "armempires@gmail.com" || userInfo?.user?.email === "admin@example.com") {
+        console.log("Admin detected via email");
+        return true;
+      }
+      
+      // Then check subscription table
+      const { data: subscription, error } = await supabase
+        .from('user_subscriptions')
+        .select('plan_id')
+        .eq('user_id', userId)
+        .eq('plan_id', 'admin')
+        .single();
+      
+      if (!error && subscription) {
+        console.log("Admin detected via subscription table");
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      return false;
+    }
+  };
+  
   // Set up auth state listener
   useEffect(() => {
     console.log("Setting up auth state listener");
@@ -64,30 +94,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.log("Profile fetched:", profile);
     
                 // Check if user is admin
-                const { data: subscription, error: subError } = await supabase
-                  .from('user_subscriptions')
-                  .select('plan_id')
-                  .eq('user_id', session.user.id)
-                  .eq('plan_id', 'admin')
-                  .single();
-    
-                const isAdmin = !subError && subscription;
-                console.log("Is admin check:", isAdmin ? "Yes" : "No", subError ? `(Error: ${subError.message})` : "");
+                const isAdminUser = await checkIsAdmin(session.user.id);
+                console.log("Is admin check:", isAdminUser ? "Yes" : "No");
                 
                 setCurrentUser({
                   id: session.user.id,
                   email: profile.email,
                   name: profile.name,
-                  role: isAdmin ? 'admin' : 'user'
+                  role: isAdminUser ? 'admin' : 'user'
                 });
               } catch (error: any) {
                 console.error("Error in fetchUserData:", error);
+                
+                // Check if user is admin even if profile fetch fails
+                const isAdminUser = await checkIsAdmin(session.user.id);
+                
                 // If there's an error fetching the profile, set a basic user object
                 setCurrentUser({
                   id: session.user.id,
                   email: session.user.email || 'unknown',
                   name: session.user.email?.split('@')[0] || 'User',
-                  role: 'user' // Default to user role
+                  role: isAdminUser ? 'admin' : 'user'
                 });
               }
             };
@@ -107,9 +134,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Check for existing session
     console.log("Checking for existing session");
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         console.log("Existing session found for:", session.user.email);
+        
+        try {
+          // Fetch profile
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          // Check admin status
+          const isAdminUser = await checkIsAdmin(session.user.id);
+          
+          if (profileError) {
+            console.error("Error fetching profile:", profileError);
+            setCurrentUser({
+              id: session.user.id,
+              email: session.user.email || 'unknown',
+              name: session.user.email?.split('@')[0] || 'User',
+              role: isAdminUser ? 'admin' : 'user'
+            });
+          } else {
+            setCurrentUser({
+              id: session.user.id,
+              email: profile.email,
+              name: profile.name,
+              role: isAdminUser ? 'admin' : 'user'
+            });
+          }
+        } catch (error) {
+          console.error("Error setting up existing session:", error);
+        }
       } else {
         console.log("No existing session found");
       }
@@ -137,6 +195,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log("Login successful:", data);
+      
+      // Handle special case for admin
+      if (email === "armempires@gmail.com" || email === "admin@example.com") {
+        console.log("Setting admin plan for admin user");
+        try {
+          const { error } = await supabase
+            .from('user_subscriptions')
+            .upsert({
+              user_id: data.user.id,
+              plan_id: 'admin',
+              start_date: new Date().toISOString(),
+              end_date: null,
+              is_active: true
+            }, { onConflict: 'user_id' });
+            
+          if (error) {
+            console.error("Error setting admin plan:", error);
+          }
+        } catch (err) {
+          console.error("Error setting admin plan:", err);
+        }
+      }
+      
       return true;
     } catch (error: any) {
       console.error("Exception during login:", error);
@@ -230,7 +311,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
-    return currentUser?.role === 'admin';
+    console.log("Checking if user is admin:", currentUser?.role);
+    return currentUser?.role === 'admin' || 
+           currentUser?.email === 'armempires@gmail.com' || 
+           currentUser?.email === 'admin@example.com';
   };
 
   const value = {

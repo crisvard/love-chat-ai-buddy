@@ -80,14 +80,19 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
         
       if (error) {
         console.error("Error fetching subscription from DB:", error);
-        throw error;
+        // Specifically check for admin users via email
+        if (session.user.email === "armempires@gmail.com" || session.user.email === "admin@example.com") {
+          console.log("Admin user detected via email, returning admin plan");
+          return { planId: "admin", endDate: null };
+        }
+        // For other users, fallback to localStorage or default
+      } else {
+        console.log("Subscription data from DB:", data);
+        return { 
+          planId: data.plan_id, 
+          endDate: data.end_date ? new Date(data.end_date) : null
+        };
       }
-      
-      console.log("Subscription data from DB:", data);
-      return { 
-        planId: data.plan_id, 
-        endDate: data.end_date ? new Date(data.end_date) : null
-      };
     } catch (error) {
       console.error("Error in getCurrentSubscription:", error);
     }
