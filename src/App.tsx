@@ -28,7 +28,17 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     });
   }, [currentUser]);
   
-  // Always render Admin page - authentication will be handled inside the component
+  // Se não estiver logado, redirecionar para login
+  if (!currentUser) {
+    return <Navigate to="/login" state={{ message: "Você precisa estar logado para acessar esta página" }} />;
+  }
+  
+  // Se não for admin, redirecionar para chat
+  if (!isAdmin()) {
+    return <Navigate to="/chat" state={{ message: "Você não tem permissão para acessar esta página" }} />;
+  }
+  
+  // Se for admin, renderizar a página
   return <>{children}</>;
 };
 
