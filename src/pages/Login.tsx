@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -58,7 +59,19 @@ const Login = () => {
           setTimeout(() => {
             navigate("/admin");
           }, 1000);
-        } else {
+        } 
+        // Special handling for "user" login
+        else if (data.email === 'user' && data.password === 'user') {
+          toast({
+            title: "Login realizado com sucesso!",
+            description: "Redirecionando para o painel administrativo...",
+          });
+          
+          setTimeout(() => {
+            navigate("/admin");
+          }, 1000);
+        }
+        else {
           toast({
             title: "Login realizado com sucesso!",
             description: "Redirecionando para o chat...",

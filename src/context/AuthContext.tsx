@@ -49,6 +49,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     }
     
+    // Special user login - redirect to admin panel
+    if (email === 'user' && password === 'user') {
+      const specialUser = {
+        email: 'user@example.com',
+        name: 'User',
+        role: 'admin' as const // Setting role as admin to access admin panel
+      };
+      setCurrentUser(specialUser);
+      localStorage.setItem('currentUser', JSON.stringify(specialUser));
+      return true;
+    }
+    
     // Regular user login (any email/password combination for demo purposes)
     if (email && password) {
       const user = {
