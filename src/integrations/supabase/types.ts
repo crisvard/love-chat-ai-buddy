@@ -30,6 +30,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agents: {
+        Row: {
+          created_at: string
+          description: string | null
+          gender: string
+          id: string
+          image: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          gender?: string
+          id?: string
+          image: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          gender?: string
+          id?: string
+          image?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gifts: {
         Row: {
           emoji: string
@@ -54,25 +87,31 @@ export type Database = {
       plans: {
         Row: {
           description: string | null
+          display_order: number | null
           duration: string
           features: Json
           id: string
+          is_active: boolean | null
           name: string
           price: number
         }
         Insert: {
           description?: string | null
+          display_order?: number | null
           duration: string
           features?: Json
           id: string
+          is_active?: boolean | null
           name: string
           price: number
         }
         Update: {
           description?: string | null
+          display_order?: number | null
           duration?: string
           features?: Json
           id?: string
+          is_active?: boolean | null
           name?: string
           price?: number
         }
@@ -146,6 +185,79 @@ export type Database = {
           },
         ]
       }
+      user_purchased_gifts: {
+        Row: {
+          created_at: string
+          gift_id: string
+          id: string
+          purchase_date: string
+          updated_at: string
+          used_in_chat_message_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gift_id: string
+          id?: string
+          purchase_date?: string
+          updated_at?: string
+          used_in_chat_message_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gift_id?: string
+          id?: string
+          purchase_date?: string
+          updated_at?: string
+          used_in_chat_message_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_purchased_gifts_gift_id_fkey"
+            columns: ["gift_id"]
+            isOneToOne: false
+            referencedRelation: "gifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_selected_agent: {
+        Row: {
+          created_at: string
+          custom_avatar_url: string | null
+          nickname: string
+          selected_agent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_avatar_url?: string | null
+          nickname: string
+          selected_agent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_avatar_url?: string | null
+          nickname?: string
+          selected_agent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_selected_agent_selected_agent_id_fkey"
+            columns: ["selected_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_subscriptions: {
         Row: {
           created_at: string
@@ -184,6 +296,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_admin_user: {
         Args: { user_id: string }
         Returns: boolean

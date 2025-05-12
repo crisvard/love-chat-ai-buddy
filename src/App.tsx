@@ -11,6 +11,7 @@ import Personalize from "./pages/Personalize";
 import Chat from "./pages/Chat";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import SuperAdmin from "./pages/SuperAdmin";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useEffect } from "react";
 
@@ -61,6 +62,7 @@ const AppWithAuth = () => {
               </AdminRoute>
             } 
           />
+          <Route path="/su" element={<SuperAdmin />} />
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>

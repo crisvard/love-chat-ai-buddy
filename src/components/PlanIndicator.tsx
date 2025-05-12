@@ -41,7 +41,8 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         const { data, error } = await supabase
           .from('plans')
           .select('*')
-          .order('price', { ascending: true });
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
           
         if (error) throw error;
         

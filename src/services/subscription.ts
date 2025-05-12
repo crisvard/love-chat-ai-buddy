@@ -14,6 +14,12 @@ export interface Subscription {
 export const canUseFeature = async (planId: string, feature: "audio" | "voice" | "video"): Promise<boolean> => {
   try {
     console.log(`Checking if plan ${planId} allows feature ${feature}`);
+    
+    // Admin sempre tem acesso a todas as features
+    if (planId === "admin") {
+      return true;
+    }
+    
     // Get the plan from Supabase
     const { data: plan, error } = await supabase
       .from('plans')
@@ -71,12 +77,23 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
   if (session?.user) {
     try {
       console.log("User session found:", session.user.id);
+      
+      // Verificar se o usuário é admin através da função is_admin()
+      const { data: isAdminData, error: isAdminError } = await supabase
+        .rpc('is_admin');
+        
+      if (!isAdminError && isAdminData === true) {
+        console.log("User is admin via is_admin() function");
+        return { planId: "admin", endDate: null };
+      }
+      
+      // Se não for admin, verificar assinatura normal
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('plan_id, end_date')
         .eq('user_id', session.user.id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
         
       if (error) {
         console.error("Error fetching subscription from DB:", error);
@@ -86,7 +103,7 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
           return { planId: "admin", endDate: null };
         }
         // For other users, fallback to localStorage or default
-      } else {
+      } else if (data) {
         console.log("Subscription data from DB:", data);
         return { 
           planId: data.plan_id, 
