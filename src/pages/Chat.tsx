@@ -3,7 +3,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
-import { Mic, Send, Phone, Video, Image, Smile } from "lucide-react";
+import { Mic, Send, Phone, Video, Image, Smile, Gift } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import EmojiPicker, { EmojiStyle, EmojiClickData } from "emoji-picker-react";
 
 interface Message {
   id: string;
@@ -16,7 +20,11 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGiftMenu, setShowGiftMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { currentUser, logout } = useAuth();
   
   // Dados do agente (em um aplicativo real, viriam do banco de dados)
   const agent = {
@@ -24,6 +32,36 @@ const Chat = () => {
     nickname: "Amor",
     avatar: "https://randomuser.me/api/portraits/women/44.jpg"
   };
+
+  // Load premium gifts from localStorage
+  const [premiumGifts, setPremiumGifts] = useState<Array<{id: string, name: string, emoji: string, price: string}>>([]);
+  
+  useEffect(() => {
+    const storedGifts = localStorage.getItem("gifts");
+    if (storedGifts) {
+      setPremiumGifts(JSON.parse(storedGifts));
+    } else {
+      // Default gifts if none are stored
+      setPremiumGifts([
+        { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
+        { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
+        { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
+        { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
+      ]);
+    }
+  }, []);
+  
+  // Check authentication
+  useEffect(() => {
+    if (!currentUser) {
+      toast({
+        title: "Acesso negado",
+        description: "Faça login para acessar o chat.",
+        variant: "destructive",
+      });
+      navigate("/login");
+    }
+  }, [currentUser, navigate]);
   
   // Simular algumas mensagens iniciais
   useEffect(() => {
@@ -102,6 +140,63 @@ const Chat = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setNewMessage(prev => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleGiftClick = (gift: {id: string, name: string, emoji: string, price: string}) => {
+    // Mock purchase flow - in a real app this would connect to payment processing
+    const confirmPurchase = window.confirm(
+      `Deseja comprar ${gift.name} por R$${gift.price}?`
+    );
+    
+    if (confirmPurchase) {
+      // Simulate successful purchase
+      toast({
+        title: "Compra realizada!",
+        description: `Você comprou ${gift.name} por R$${gift.price}`,
+      });
+      
+      // Send the gift as a message
+      const giftMessage: Message = {
+        id: Date.now().toString(),
+        text: `${gift.emoji} [Presente: ${gift.name}]`,
+        sender: "user",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, giftMessage]);
+      setShowGiftMenu(false);
+      
+      // Simulate agent response
+      setTimeout(() => {
+        const agentResponses = [
+          "Que presente lindo! Obrigado! ❤️",
+          "Amei! Você é muito especial! 😍",
+          "Que surpresa incrível! Você é o melhor!",
+          "Que gentileza! Você sempre me surpreende!",
+        ];
+        
+        const randomResponse = agentResponses[Math.floor(Math.random() * agentResponses.length)];
+        
+        const agentMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: randomResponse,
+          sender: "agent",
+          timestamp: new Date(),
+        };
+        
+        setMessages((prev) => [...prev, agentMessage]);
+      }, 1000);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Cabeçalho do chat */}
@@ -126,6 +221,9 @@ const Chat = () => {
             </Button>
             <Button variant="ghost" size="icon" className="text-white hover:bg-purple-700">
               <Video className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-purple-700" onClick={handleLogout}>
+              Sair
             </Button>
           </div>
         </div>
@@ -172,11 +270,62 @@ const Chat = () => {
         </div>
       </div>
       
+      {/* Emoji Picker */}
+      {showEmojiPicker && (
+        <div className="absolute bottom-20 left-4 z-10">
+          <EmojiPicker
+            onEmojiClick={handleEmojiClick}
+            emojiStyle={EmojiStyle.NATIVE}
+            height={400}
+            width={350}
+          />
+        </div>
+      )}
+      
+      {/* Gift Menu */}
+      {showGiftMenu && (
+        <div className="absolute bottom-20 left-16 z-10 bg-white p-4 rounded-lg shadow-lg border">
+          <h3 className="font-bold mb-2">Presentes Premium</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {premiumGifts.map((gift) => (
+              <button
+                key={gift.id}
+                className="flex flex-col items-center p-2 border rounded hover:bg-purple-50"
+                onClick={() => handleGiftClick(gift)}
+              >
+                <span className="text-2xl mb-1">{gift.emoji}</span>
+                <span className="text-sm">{gift.name}</span>
+                <span className="text-xs text-gray-500">R${gift.price}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      
       {/* Barra de entrada de mensagem */}
       <div className="p-3 border-t bg-white">
         <div className="flex items-center">
-          <Button variant="ghost" size="icon" className="text-gray-500">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-gray-500"
+            onClick={() => {
+              setShowEmojiPicker(!showEmojiPicker);
+              setShowGiftMenu(false);
+            }}
+          >
             <Smile className="h-5 w-5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-gray-500"
+            onClick={() => {
+              setShowGiftMenu(!showGiftMenu);
+              setShowEmojiPicker(false);
+            }}
+          >
+            <Gift className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" className="text-gray-500">
             <Image className="h-5 w-5" />

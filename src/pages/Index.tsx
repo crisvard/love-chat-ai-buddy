@@ -1,66 +1,92 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+
+const defaultPlans = [
+  {
+    id: "free",
+    name: "Teste Grátis",
+    price: "0",
+    duration: "3 dias",
+    description: "Experimente nosso serviço sem compromisso",
+    features: ["Mensagens de texto"],
+    primaryAction: "Experimente Grátis",
+    secondaryAction: null,
+  },
+  {
+    id: "basic",
+    name: "Básico",
+    price: "29.90",
+    duration: "mensal",
+    description: "Para quem quer manter o contato",
+    features: ["Mensagens de texto (sem limite)"],
+    primaryAction: "Assinar",
+    secondaryAction: null,
+  },
+  {
+    id: "intermediate",
+    name: "Intermediário",
+    price: "49.90",
+    duration: "mensal",
+    description: "Para uma experiência mais pessoal",
+    features: ["Mensagens de texto (sem limite)", "Áudio"],
+    primaryAction: "Assinar",
+    secondaryAction: null,
+  },
+  {
+    id: "premium",
+    name: "Premium",
+    price: "79.90",
+    duration: "mensal",
+    description: "Para a experiência completa",
+    features: [
+      "Mensagens de texto (sem limite)", 
+      "Áudio", 
+      "4 chamadas de voz por mês",
+      "4 chamadas de vídeo por mês"
+    ],
+    primaryAction: "Assinar",
+    secondaryAction: null,
+  },
+];
 
 const Index = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const [plans, setPlans] = useState(defaultPlans);
   
-  const plans = [
-    {
-      id: "free",
-      name: "Teste Grátis",
-      price: "R$0",
-      duration: "3 dias",
-      description: "Experimente nosso serviço sem compromisso",
-      features: ["Mensagens de texto"],
-      primaryAction: "Experimente Grátis",
-      secondaryAction: null,
-    },
-    {
-      id: "basic",
-      name: "Básico",
-      price: "R$29,90",
-      duration: "mensal",
-      description: "Para quem quer manter o contato",
-      features: ["Mensagens de texto (sem limite)"],
-      primaryAction: "Assinar",
-      secondaryAction: null,
-    },
-    {
-      id: "intermediate",
-      name: "Intermediário",
-      price: "R$49,90",
-      duration: "mensal",
-      description: "Para uma experiência mais pessoal",
-      features: ["Mensagens de texto (sem limite)", "Áudio"],
-      primaryAction: "Assinar",
-      secondaryAction: null,
-    },
-    {
-      id: "premium",
-      name: "Premium",
-      price: "R$79,90",
-      duration: "mensal",
-      description: "Para a experiência completa",
-      features: [
-        "Mensagens de texto (sem limite)", 
-        "Áudio", 
-        "4 chamadas de voz por mês",
-        "4 chamadas de vídeo por mês"
-      ],
-      primaryAction: "Assinar",
-      secondaryAction: null,
-    },
-  ];
+  useEffect(() => {
+    // Load plans from localStorage if they've been modified by admin
+    const savedPlans = localStorage.getItem("plans");
+    if (savedPlans) {
+      try {
+        const parsedPlans = JSON.parse(savedPlans);
+        // Ensure we have all the required properties
+        const updatedPlans = parsedPlans.map((plan: any) => ({
+          ...plan,
+          primaryAction: plan.id === "free" ? "Experimente Grátis" : "Assinar",
+          secondaryAction: null
+        }));
+        setPlans(updatedPlans);
+      } catch (error) {
+        console.error("Error parsing plans from localStorage", error);
+      }
+    }
+  }, []);
   
   const handleAction = (planId: string, actionType: "primary" | "secondary") => {
-    if (planId === "free") {
-      navigate("/signup");
+    if (currentUser) {
+      navigate("/personalize");
     } else {
-      navigate("/signup?plan=" + planId);
+      if (planId === "free") {
+        navigate("/signup");
+      } else {
+        navigate("/signup?plan=" + planId);
+      }
     }
   };
 
@@ -74,6 +100,16 @@ const Index = () => {
         <p className="text-lg md:text-xl text-center mt-4 text-gray-600 max-w-2xl mx-auto">
           Tenha sempre alguém especial para conversar, sem julgamentos ou complicações
         </p>
+        {currentUser && (
+          <div className="mt-6 text-center">
+            <Button 
+              onClick={() => navigate("/chat")}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Ir para o chat
+            </Button>
+          </div>
+        )}
       </header>
       
       {/* Plans Section */}
@@ -93,7 +129,7 @@ const Index = () => {
               <CardHeader>
                 <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
                 <div className="mt-2">
-                  <span className="text-2xl font-bold">{plan.price}</span>
+                  <span className="text-2xl font-bold">R${plan.price}</span>
                   {plan.duration && (
                     <span className="text-sm text-gray-500">/{plan.duration}</span>
                   )}

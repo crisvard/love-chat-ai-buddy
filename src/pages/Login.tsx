@@ -17,10 +17,11 @@ import {
 } from "@/components/ui/form";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
+import { useAuth } from "@/context/AuthContext";
 
 // Schema para validação do formulário
 const loginSchema = z.object({
-  email: z.string().email({ message: "Email inválido" }),
+  email: z.string().min(1, { message: "Email é obrigatório" }),
   password: z.string().min(1, { message: "Senha é obrigatória" }),
 });
 
@@ -30,6 +31,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 const Login = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
   // Configuração do formulário com react-hook-form e zod
   const form = useForm<LoginValues>({
@@ -44,22 +46,29 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      // Aqui viria a lógica de login com Firebase
-      console.log("Dados do login:", data);
+      const success = await login(data.email, data.password);
       
-      // Simulando um delay de processamento
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Redirecionando para o chat...",
-      });
-      
-      // Redirecionar para o chat
-      setTimeout(() => {
-        navigate("/chat");
-      }, 1000);
-      
+      if (success) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: data.email === 'admin' ? "Redirecionando para o painel admin..." : "Redirecionando para o chat...",
+        });
+        
+        // Redirect based on user type
+        setTimeout(() => {
+          if (data.email === 'admin') {
+            navigate("/admin");
+          } else {
+            navigate("/chat");
+          }
+        }, 1000);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao fazer login",
+          description: "Email ou senha incorretos. Tente novamente.",
+        });
+      }
     } catch (error) {
       console.error("Erro no login:", error);
       toast({
@@ -150,9 +159,9 @@ const Login = () => {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email ou Usuário</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="seu@email.com" {...field} />
+                    <Input placeholder="seu@email.com ou admin" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
