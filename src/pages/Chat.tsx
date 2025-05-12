@@ -16,6 +16,14 @@ interface Message {
   timestamp: Date;
 }
 
+interface AgentProfile {
+  id: string;
+  name: string;
+  gender: "male" | "female";
+  image: string;
+  nickname?: string;
+}
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -26,17 +34,29 @@ const Chat = () => {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   
-  // Dados do agente (em um aplicativo real, viriam do banco de dados)
-  const agent = {
+  // Agent data from localStorage 
+  const [agent, setAgent] = useState({
     name: "Ana",
     nickname: "Amor",
     avatar: "https://randomuser.me/api/portraits/women/44.jpg"
-  };
+  });
 
   // Load premium gifts from localStorage
   const [premiumGifts, setPremiumGifts] = useState<Array<{id: string, name: string, emoji: string, price: string}>>([]);
   
   useEffect(() => {
+    // Load selected agent
+    const selectedAgentData = localStorage.getItem("selectedAgent");
+    if (selectedAgentData) {
+      const selectedAgent = JSON.parse(selectedAgentData);
+      setAgent({
+        name: selectedAgent.name,
+        nickname: selectedAgent.nickname || "Amor",
+        avatar: selectedAgent.image
+      });
+    }
+
+    // Load gifts
     const storedGifts = localStorage.getItem("gifts");
     if (storedGifts) {
       setPremiumGifts(JSON.parse(storedGifts));
@@ -63,25 +83,27 @@ const Chat = () => {
     }
   }, [currentUser, navigate]);
   
-  // Simular algumas mensagens iniciais
+  // Simular algumas mensagens iniciais com o nome do agente
   useEffect(() => {
-    const initialMessages: Message[] = [
-      {
-        id: "1",
-        text: `Oi! Tudo bem com você hoje, ${agent.nickname}?`,
-        sender: "agent",
-        timestamp: new Date(Date.now() - 3600000),
-      },
-      {
-        id: "2",
-        text: "Estou com saudades! Como foi seu dia?",
-        sender: "agent",
-        timestamp: new Date(Date.now() - 3580000),
-      },
-    ];
-    
-    setMessages(initialMessages);
-  }, []);
+    if (agent.name) {
+      const initialMessages: Message[] = [
+        {
+          id: "1",
+          text: `Oi! Tudo bem com você hoje, ${agent.nickname}?`,
+          sender: "agent",
+          timestamp: new Date(Date.now() - 3600000),
+        },
+        {
+          id: "2",
+          text: "Estou com saudades! Como foi seu dia?",
+          sender: "agent",
+          timestamp: new Date(Date.now() - 3580000),
+        },
+      ];
+      
+      setMessages(initialMessages);
+    }
+  }, [agent]);
   
   // Rolar para a última mensagem quando novas mensagens chegarem
   useEffect(() => {

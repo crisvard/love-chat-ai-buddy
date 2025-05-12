@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,8 @@ const Personalize = () => {
   const [nickname, setNickname] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
-  // Lista de perfis de agentes pré-cadastrados
-  const agentProfiles: AgentProfile[] = [
+  // Lista de perfis de agentes
+  const [agentProfiles, setAgentProfiles] = useState<AgentProfile[]>([
     {
       id: "1",
       name: "Ana",
@@ -66,7 +66,15 @@ const Personalize = () => {
       gender: "male",
       image: "https://randomuser.me/api/portraits/men/64.jpg",
     },
-  ];
+  ]);
+  
+  // Load agent profiles from localStorage
+  useEffect(() => {
+    const savedAgents = localStorage.getItem("agentProfiles");
+    if (savedAgents) {
+      setAgentProfiles(JSON.parse(savedAgents));
+    }
+  }, []);
   
   const handleSelectAgent = (agent: AgentProfile) => {
     setSelectedAgent(agent);
@@ -94,7 +102,12 @@ const Personalize = () => {
     setIsLoading(true);
     
     try {
-      // Aqui viria a lógica para salvar a personalização na conta do usuário
+      // Save the selected agent and nickname to localStorage
+      localStorage.setItem("selectedAgent", JSON.stringify({
+        ...selectedAgent,
+        nickname
+      }));
+      
       console.log("Personalização:", { 
         agent: selectedAgent, 
         nickname 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { Gift, UserIcon, DollarSign, Bell } from "lucide-react";
+import { Gift, UserIcon, DollarSign, Bell, User } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 
 // Mock data for plans
 const initialPlans = [
@@ -58,10 +58,51 @@ const initialGifts = [
   { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
 ];
 
+// Mock data for users
 const initialUsers = [
   { id: "1", name: "João Silva", email: "joao@example.com", country: "Brasil", plan: "premium" },
   { id: "2", name: "Maria Souza", email: "maria@example.com", country: "Brasil", plan: "basic" },
   { id: "3", name: "Carlos Oliveira", email: "carlos@example.com", country: "Portugal", plan: "intermediate" },
+];
+
+// Initial agent profiles
+const initialAgentProfiles = [
+  {
+    id: "1",
+    name: "Ana",
+    gender: "female",
+    image: "https://randomuser.me/api/portraits/women/44.jpg",
+  },
+  {
+    id: "2",
+    name: "Carlos",
+    gender: "male",
+    image: "https://randomuser.me/api/portraits/men/32.jpg",
+  },
+  {
+    id: "3",
+    name: "Júlia",
+    gender: "female",
+    image: "https://randomuser.me/api/portraits/women/68.jpg",
+  },
+  {
+    id: "4",
+    name: "Rafael",
+    gender: "male",
+    image: "https://randomuser.me/api/portraits/men/91.jpg",
+  },
+  {
+    id: "5",
+    name: "Camila",
+    gender: "female",
+    image: "https://randomuser.me/api/portraits/women/26.jpg",
+  },
+  {
+    id: "6",
+    name: "Bruno",
+    gender: "male",
+    image: "https://randomuser.me/api/portraits/men/64.jpg",
+  },
 ];
 
 const Admin = () => {
@@ -70,8 +111,11 @@ const Admin = () => {
   const [plans, setPlans] = useState(initialPlans);
   const [gifts, setGifts] = useState(initialGifts);
   const [users, setUsers] = useState(initialUsers);
+  const [agents, setAgents] = useState(initialAgentProfiles);
   const [newGift, setNewGift] = useState({ name: "", emoji: "", price: "" });
   const [notification, setNotification] = useState("");
+  const [newAgent, setNewAgent] = useState({ name: "", gender: "female", image: "" });
+  const [editingAgent, setEditingAgent] = useState<string | null>(null);
 
   // Check if user is admin, otherwise redirect to login
   useEffect(() => {
@@ -128,6 +172,39 @@ const Admin = () => {
     );
   };
 
+  const handleAddAgent = () => {
+    if (!newAgent.name || !newAgent.image) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar perfil",
+        description: "Preencha todos os campos.",
+      });
+      return;
+    }
+
+    const id = (agents.length + 1).toString();
+    setAgents([...agents, { id, ...newAgent }]);
+    setNewAgent({ name: "", gender: "female", image: "" });
+    toast({
+      title: "Perfil adicionado",
+      description: `${newAgent.name} foi adicionado com sucesso.`,
+    });
+  };
+
+  const handleDeleteAgent = (id: string) => {
+    setAgents(agents.filter((agent) => agent.id !== id));
+    toast({
+      title: "Perfil removido",
+      description: "O perfil foi removido com sucesso.",
+    });
+  };
+
+  const handleEditAgent = (id: string, field: string, value: string) => {
+    setAgents(
+      agents.map((agent) => (agent.id === id ? { ...agent, [field]: value } : agent))
+    );
+  };
+
   const handleSendNotification = () => {
     if (!notification) {
       toast({
@@ -154,18 +231,23 @@ const Admin = () => {
   useEffect(() => {
     localStorage.setItem("plans", JSON.stringify(plans));
     localStorage.setItem("gifts", JSON.stringify(gifts));
-  }, [plans, gifts]);
+    localStorage.setItem("agentProfiles", JSON.stringify(agents));
+  }, [plans, gifts, agents]);
 
   // Load data from localStorage on first render
   useEffect(() => {
     const savedPlans = localStorage.getItem("plans");
     const savedGifts = localStorage.getItem("gifts");
+    const savedAgents = localStorage.getItem("agentProfiles");
 
     if (savedPlans) {
       setPlans(JSON.parse(savedPlans));
     }
     if (savedGifts) {
       setGifts(JSON.parse(savedGifts));
+    }
+    if (savedAgents) {
+      setAgents(JSON.parse(savedAgents));
     }
   }, []);
 
@@ -182,7 +264,7 @@ const Admin = () => {
 
       <main className="container mx-auto p-4 py-8">
         <Tabs defaultValue="gifts" className="w-full">
-          <TabsList className="grid grid-cols-4 mb-8">
+          <TabsList className="grid grid-cols-5 mb-8">
             <TabsTrigger value="gifts" className="flex items-center gap-2">
               <Gift className="h-4 w-4" />
               <span>Presentes</span>
@@ -194,6 +276,10 @@ const Admin = () => {
             <TabsTrigger value="users" className="flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
               <span>Usuários</span>
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <span>Perfis</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
@@ -340,6 +426,79 @@ const Admin = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Profiles Tab Content */}
+          <TabsContent value="profiles">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gerenciar Perfis de Agentes</CardTitle>
+                <CardDescription>Adicione, edite ou remova perfis disponíveis para os usuários</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6">
+                  <div className="flex flex-col gap-4">
+                    <div className="grid grid-cols-4 gap-4">
+                      <Input
+                        placeholder="Nome do perfil"
+                        value={newAgent.name}
+                        onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+                      />
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
+                        value={newAgent.gender}
+                        onChange={(e) => setNewAgent({ ...newAgent, gender: e.target.value as "male" | "female" })}
+                      >
+                        <option value="female">Feminino</option>
+                        <option value="male">Masculino</option>
+                      </select>
+                      <Input
+                        placeholder="URL da imagem"
+                        value={newAgent.image}
+                        onChange={(e) => setNewAgent({ ...newAgent, image: e.target.value })}
+                      />
+                      <Button onClick={handleAddAgent}>Adicionar</Button>
+                    </div>
+
+                    <div className="border rounded-md p-4">
+                      <h3 className="text-lg font-medium mb-4">Perfis disponíveis</h3>
+                      <div className="grid gap-4">
+                        {agents.map((agent) => (
+                          <div key={agent.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
+                            <Avatar className="h-12 w-12">
+                              <img src={agent.image} alt={agent.name} className="object-cover" />
+                            </Avatar>
+                            <Input
+                              value={agent.name}
+                              onChange={(e) => handleEditAgent(agent.id, "name", e.target.value)}
+                            />
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
+                              value={agent.gender}
+                              onChange={(e) => handleEditAgent(agent.id, "gender", e.target.value)}
+                            >
+                              <option value="female">Feminino</option>
+                              <option value="male">Masculino</option>
+                            </select>
+                            <Input
+                              value={agent.image}
+                              onChange={(e) => handleEditAgent(agent.id, "image", e.target.value)}
+                            />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteAgent(agent.id)}
+                            >
+                              Excluir
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
