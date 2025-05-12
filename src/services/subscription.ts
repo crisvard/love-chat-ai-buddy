@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 export interface Subscription {
   id: string;
@@ -121,13 +122,13 @@ export const setCurrentSubscription = async (planId: string, endDate: Date | nul
     try {
       const { error } = await supabase
         .from('user_subscriptions')
-        .upsert([{
+        .upsert({
           user_id: userId,
           plan_id: planId,
           start_date: new Date().toISOString(),
           end_date: endDate ? endDate.toISOString() : null,
           is_active: true
-        }], { onConflict: 'user_id' });
+        }, { onConflict: 'user_id' });
         
       if (error) {
         console.error("Error updating subscription in Supabase:", error);

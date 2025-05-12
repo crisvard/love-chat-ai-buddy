@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import EmojiPicker, { EmojiStyle, EmojiClickData } from "emoji-picker-react";
 import PlanIndicator from "@/components/PlanIndicator";
 import { canUseFeature, getCurrentSubscription, isTrialActive } from "@/services/subscription";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -32,10 +33,11 @@ const Chat = () => {
   const { currentUser, logout } = useAuth();
   
   // Get subscription data
-  const [subscription, setSubscription] = useState(() => getCurrentSubscription());
-  const [trialActive, setTrialActive] = useState(
-    subscription.planId === "free" && isTrialActive(subscription.endDate)
-  );
+  const [subscription, setSubscription] = useState<{planId: string, endDate: Date | null}>({
+    planId: "free",
+    endDate: null
+  });
+  const [trialActive, setTrialActive] = useState(false);
 
   // Agent data from localStorage 
   const [agent, setAgent] = useState({
@@ -49,45 +51,124 @@ const Chat = () => {
   
   useEffect(() => {
     // Load selected agent
-    const selectedAgentData = localStorage.getItem("selectedAgent");
-    if (selectedAgentData) {
-      const selectedAgent = JSON.parse(selectedAgentData);
-      setAgent({
-        name: selectedAgent.name,
-        nickname: selectedAgent.nickname || "Amor",
-        avatar: selectedAgent.image
-      });
-    }
+    const loadAgentData = async () => {
+      if (currentUser) {
+        try {
+          // First try to get from Supabase
+          const { data, error } = await supabase
+            .from('user_agent_selections')
+            .select('agents(*), nickname')
+            .eq('user_id', currentUser.id)
+            .single();
+            
+          if (!error && data) {
+            const agentData = data.agents as {name: string, image: string};
+            setAgent({
+              name: agentData.name,
+              nickname: data.nickname,
+              avatar: agentData.image
+            });
+          } else {
+            // Fallback to localStorage
+            const selectedAgentData = localStorage.getItem("selectedAgent");
+            if (selectedAgentData) {
+              const selectedAgent = JSON.parse(selectedAgentData);
+              setAgent({
+                name: selectedAgent.name,
+                nickname: selectedAgent.nickname || "Amor",
+                avatar: selectedAgent.image
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error loading agent data:", error);
+          
+          // Fallback to localStorage
+          const selectedAgentData = localStorage.getItem("selectedAgent");
+          if (selectedAgentData) {
+            const selectedAgent = JSON.parse(selectedAgentData);
+            setAgent({
+              name: selectedAgent.name,
+              nickname: selectedAgent.nickname || "Amor",
+              avatar: selectedAgent.image
+            });
+          }
+        }
+      }
+    };
 
-    // Load gifts
-    const storedGifts = localStorage.getItem("gifts");
-    if (storedGifts) {
-      setPremiumGifts(JSON.parse(storedGifts));
-    } else {
-      // Default gifts if none are stored
-      setPremiumGifts([
-        { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
-        { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
-        { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
-        { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
-      ]);
-    }
+    // Load gifts from Supabase
+    const loadGifts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('gifts')
+          .select('*');
+          
+        if (!error && data) {
+          setPremiumGifts(data.map(gift => ({
+            id: gift.id,
+            name: gift.name,
+            emoji: gift.emoji,
+            price: gift.price.toString()
+          })));
+        } else {
+          // Fallback to localStorage
+          const storedGifts = localStorage.getItem("gifts");
+          if (storedGifts) {
+            setPremiumGifts(JSON.parse(storedGifts));
+          } else {
+            // Default gifts if none are stored
+            setPremiumGifts([
+              { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
+              { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
+              { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
+              { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
+            ]);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading gifts:", error);
+        
+        // Fallback to localStorage
+        const storedGifts = localStorage.getItem("gifts");
+        if (storedGifts) {
+          setPremiumGifts(JSON.parse(storedGifts));
+        } else {
+          // Default gifts if none are stored
+          setPremiumGifts([
+            { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
+            { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
+            { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
+            { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
+          ]);
+        }
+      }
+    };
 
     // Check subscription status and trial validity
-    const checkSubscription = () => {
-      const currentSub = getCurrentSubscription();
-      setSubscription(currentSub);
-      
-      if (currentSub.planId === "free") {
-        setTrialActive(isTrialActive(currentSub.endDate));
+    const checkSubscription = async () => {
+      try {
+        const currentSub = await getCurrentSubscription();
+        setSubscription(currentSub);
+        
+        if (currentSub.planId === "free") {
+          setTrialActive(isTrialActive(currentSub.endDate));
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        // Set defaults if there's an error
+        setSubscription({ planId: "free", endDate: null });
+        setTrialActive(false);
       }
     };
     
+    loadAgentData();
+    loadGifts();
     checkSubscription();
     const timer = setInterval(checkSubscription, 60000); // Check every minute
     
     return () => clearInterval(timer);
-  }, []);
+  }, [currentUser]);
   
   // Check authentication
   useEffect(() => {
@@ -128,7 +209,7 @@ const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
     // Check if trial has expired for free plan users
@@ -178,9 +259,10 @@ const Chat = () => {
     }
   };
   
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     // Check if user can use audio feature
-    if (!canUseFeature(subscription.planId, "audio")) {
+    const canUseAudio = await canUseFeature(subscription.planId, "audio");
+    if (!canUseAudio) {
       setFeatureNeeded("audio");
       setShowUpgradeDialog(true);
       return;
@@ -190,9 +272,10 @@ const Chat = () => {
     // Em um aplicativo real, aqui seria implementada a gravação de áudio
   };
 
-  const handleVoiceCall = () => {
+  const handleVoiceCall = async () => {
     // Check if user can use voice call feature
-    if (!canUseFeature(subscription.planId, "voice")) {
+    const canUseVoice = await canUseFeature(subscription.planId, "voice");
+    if (!canUseVoice) {
       setFeatureNeeded("voice");
       setShowUpgradeDialog(true);
       return;
@@ -205,9 +288,10 @@ const Chat = () => {
     });
   };
 
-  const handleVideoCall = () => {
+  const handleVideoCall = async () => {
     // Check if user can use video call feature
-    if (!canUseFeature(subscription.planId, "video")) {
+    const canUseVideo = await canUseFeature(subscription.planId, "video");
+    if (!canUseVideo) {
       setFeatureNeeded("video");
       setShowUpgradeDialog(true);
       return;
@@ -521,12 +605,12 @@ const Chat = () => {
               size="icon"
               onClick={toggleRecording}
               className={isRecording ? "text-red-500" : "text-gray-500"}
-              disabled={!canUseFeature(subscription.planId, "audio")}
+              disabled={subscription.planId === "free" && !trialActive}
             >
-              {canUseFeature(subscription.planId, "audio") ? (
-                <Mic className="h-5 w-5" />
-              ) : (
+              {isRecording ? (
                 <MicOff className="h-5 w-5" />
+              ) : (
+                <Mic className="h-5 w-5" />
               )}
             </Button>
           )}

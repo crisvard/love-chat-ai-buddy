@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Gift, UserIcon, DollarSign, Bell, User } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 // Define interfaces for our data types
 interface Plan {
@@ -91,7 +91,7 @@ const Admin = () => {
         price: plan.price.toString(),
         duration: plan.duration,
         description: plan.description || "",
-        features: Array.isArray(plan.features) ? plan.features : []
+        features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : []
       })));
       
       // Fetch gifts
@@ -115,7 +115,12 @@ const Admin = () => {
         
       if (agentsError) throw agentsError;
       
-      setAgents(agentsData);
+      setAgents(agentsData.map(agent => ({
+        id: agent.id,
+        name: agent.name,
+        gender: agent.gender as "male" | "female",
+        image: agent.image
+      })));
       
       // Fetch users (combine profiles and subscriptions)
       const { data: profilesData, error: profilesError } = await supabase
@@ -316,7 +321,14 @@ const Admin = () => {
       if (error) throw error;
       
       // Add to local state
-      setAgents([...agents, data[0]]);
+      const newAgentWithCorrectType: AgentProfile = {
+        id: data[0].id,
+        name: newAgent.name,
+        gender: newAgent.gender,
+        image: newAgent.image
+      };
+      
+      setAgents([...agents, newAgentWithCorrectType]);
       
       setNewAgent({ name: "", gender: "female", image: "" });
       
@@ -362,18 +374,39 @@ const Admin = () => {
 
   const handleEditAgent = async (id: string, field: string, value: string) => {
     try {
+      // For gender field, ensure it's only 'male' or 'female'
+      if (field === 'gender' && value !== 'male' && value !== 'female') {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Gênero deve ser 'male' ou 'female'.",
+        });
+        return;
+      }
+      
+      const updateData: any = {
+        [field]: value
+      };
+      
       const { error } = await supabase
         .from('agents')
-        .update({
-          [field]: value
-        })
+        .update(updateData)
         .eq('id', id);
         
       if (error) throw error;
       
-      // Update local state
+      // Update local state with type safety
       setAgents(
-        agents.map((agent) => (agent.id === id ? { ...agent, [field]: value } : agent))
+        agents.map((agent) => {
+          if (agent.id === id) {
+            if (field === 'gender') {
+              return { ...agent, gender: value as "male" | "female" };
+            } else {
+              return { ...agent, [field]: value };
+            }
+          }
+          return agent;
+        })
       );
     } catch (error) {
       console.error("Error updating agent:", error);
@@ -453,7 +486,6 @@ const Admin = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Gifts Tab Content */}
           <TabsContent value="gifts">
             <Card>
               <CardHeader>
@@ -520,7 +552,6 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* Plans Tab Content */}
           <TabsContent value="plans">
             <Card>
               <CardHeader>
@@ -563,7 +594,6 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* Users Tab Content */}
           <TabsContent value="users">
             <Card>
               <CardHeader>
@@ -597,7 +627,6 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* Profiles Tab Content */}
           <TabsContent value="profiles">
             <Card>
               <CardHeader>
@@ -670,7 +699,6 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* Notifications Tab Content */}
           <TabsContent value="notifications">
             <Card>
               <CardHeader>

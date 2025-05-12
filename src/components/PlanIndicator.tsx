@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { getCurrentSubscription, setCurrentSubscription } from "@/services/subscription";
+import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
   id: string;
@@ -49,7 +50,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
           id: plan.id,
           name: plan.name,
           price: plan.price.toString(),
-          features: Array.isArray(plan.features) ? plan.features : []
+          features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : []
         }));
         
         // Filter to only show plans that are more expensive than current plan
@@ -166,19 +167,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
     try {
       // Update user's subscription in Supabase
       const endDate = planId === "free" ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) : null; // 3 days for free trial
-      
-      // Fix: Convert Date objects to ISO strings for Supabase compatibility
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .upsert([{
-          user_id: currentUser.id, // Using actual user ID now
-          plan_id: planId,
-          start_date: new Date().toISOString(),
-          end_date: endDate ? endDate.toISOString() : null,
-          is_active: true
-        }], { onConflict: 'user_id' });
-
-      if (error) throw error;
+      await setCurrentSubscription(planId, endDate, currentUser.id);
 
       toast({
         title: "Plano atualizado!",

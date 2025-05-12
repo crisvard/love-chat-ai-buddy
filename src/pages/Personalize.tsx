@@ -54,7 +54,22 @@ const Personalize = () => {
           .single();
           
         if (!error && data) {
-          setSelectedAgent(data.agents as AgentProfile);
+          const agentData = data.agents as unknown as {
+            id: string;
+            name: string;
+            gender: string;
+            image: string;
+          };
+          
+          // Convert the agent data to the correct type
+          const agentWithCorrectType: AgentProfile = {
+            id: agentData.id,
+            name: agentData.name,
+            gender: agentData.gender as "male" | "female",
+            image: agentData.image
+          };
+          
+          setSelectedAgent(agentWithCorrectType);
           setNickname(data.nickname);
         }
       } catch (error) {
@@ -71,14 +86,28 @@ const Personalize = () => {
           
         if (error) throw error;
         
-        setAgentProfiles(data);
+        // Convert gender to the correct type
+        const agents = data.map(agent => ({
+          id: agent.id,
+          name: agent.name,
+          gender: agent.gender as "male" | "female",
+          image: agent.image
+        }));
+        
+        setAgentProfiles(agents);
       } catch (error) {
         console.error("Error fetching agents:", error);
         
         // Fallback to local storage
         const savedAgents = localStorage.getItem("agentProfiles");
         if (savedAgents) {
-          setAgentProfiles(JSON.parse(savedAgents));
+          const parsedAgents = JSON.parse(savedAgents);
+          // Make sure to convert gender to the correct type
+          const typedAgents = parsedAgents.map((agent: any) => ({
+            ...agent,
+            gender: agent.gender as "male" | "female"
+          }));
+          setAgentProfiles(typedAgents);
         }
       }
     };

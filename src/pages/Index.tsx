@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
   id: string;
@@ -36,7 +36,7 @@ const Index = () => {
           
         if (error) throw error;
         
-        // Map to the expected format
+        // Map to the expected format with proper type conversion
         const formattedPlans = data
           .filter(plan => plan.id !== 'admin')
           .map(plan => ({
@@ -45,7 +45,7 @@ const Index = () => {
             price: plan.price.toString(),
             duration: plan.duration,
             description: plan.description || "",
-            features: Array.isArray(plan.features) ? plan.features : [],
+            features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : [],
             primaryAction: plan.id === "free" ? "Experimente Grátis" : "Assinar",
             secondaryAction: null
           }));
@@ -125,6 +125,7 @@ const Index = () => {
   };
 
   return (
+    
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
       {/* Header */}
       <header className="container mx-auto pt-10 pb-6 px-4">
