@@ -33,9 +33,11 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
     try {
       console.log(`Tentando login admin com: ${email}`);
       
-      // Simplificado: verificar credenciais de admin diretamente
+      // Usar credenciais diretas para login administrativo
       if ((email === 'armempires@gmail.com' && password === 'mudar123') || 
           (email === 'admin' && password === 'admin')) {
+        
+        console.log("Using special admin credentials");
         
         // Determinar qual email usar para login real
         const loginEmail = email === 'admin' ? 'admin@example.com' : email;
@@ -51,31 +53,13 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
           throw new Error("Falha na autenticação de administrador. Verifique suas credenciais.");
         }
         
-        console.log("Login admin bem-sucedido");
-        
-        // Garantir papel de administrador
-        if (data.user) {
-          try {
-            await supabase
-              .from('user_subscriptions')
-              .upsert({
-                user_id: data.user.id,
-                plan_id: 'admin',
-                start_date: new Date().toISOString(),
-                end_date: null,
-                is_active: true
-              }, { onConflict: 'user_id' });
-              
-            console.log("Plano admin configurado com sucesso");
-          } catch (err) {
-            console.error("Erro ao configurar o plano admin:", err);
-          }
-        }
+        console.log("Direct admin login successful");
         
         toast({
           title: "Login realizado",
           description: "Login de administrador bem-sucedido!",
         });
+        
         onLoginSuccess();
         return;
       } else {
@@ -133,6 +117,11 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
           >
             {isLoading ? "Entrando..." : "Entrar como Administrador"}
           </Button>
+          
+          <p className="text-xs text-gray-500 text-center">
+            Acesso com: admin / admin<br/>
+            ou armempires@gmail.com / mudar123
+          </p>
         </form>
       </DialogContent>
     </Dialog>

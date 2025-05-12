@@ -105,108 +105,147 @@ const Admin = () => {
     fetchData();
   };
 
-  // Fetch all data from Supabase
+  // Fetch all data from Supabase - with better error handling
   const fetchData = async () => {
     setIsLoading(true);
     try {
       console.log("Fetching admin data...");
       
-      // Fetch plans
-      const { data: plansData, error: plansError } = await supabase
-        .from('plans')
-        .select('*');
-        
-      if (plansError) {
-        console.error("Error fetching plans:", plansError);
-        throw plansError;
+      // Fetch plans with error handling
+      try {
+        const { data: plansData, error: plansError } = await supabase
+          .from('plans')
+          .select('*');
+          
+        if (plansError) {
+          console.error("Error fetching plans:", plansError);
+          toast({
+            variant: "destructive",
+            title: "Erro ao carregar planos",
+            description: plansError.message,
+          });
+        } else if (plansData) {
+          console.log("Plans data:", plansData);
+          
+          setPlans(plansData.map(plan => ({
+            id: plan.id,
+            name: plan.name,
+            price: plan.price.toString(),
+            duration: plan.duration,
+            description: plan.description || "",
+            features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : []
+          })));
+        }
+      } catch (err) {
+        console.error("Exception fetching plans:", err);
       }
       
-      console.log("Plans data:", plansData);
-      
-      setPlans(plansData.map(plan => ({
-        id: plan.id,
-        name: plan.name,
-        price: plan.price.toString(),
-        duration: plan.duration,
-        description: plan.description || "",
-        features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : []
-      })));
-      
-      // Fetch gifts
-      const { data: giftsData, error: giftsError } = await supabase
-        .from('gifts')
-        .select('*');
-        
-      if (giftsError) {
-        console.error("Error fetching gifts:", giftsError);
-        throw giftsError;
+      // Fetch gifts with error handling
+      try {
+        const { data: giftsData, error: giftsError } = await supabase
+          .from('gifts')
+          .select('*');
+          
+        if (giftsError) {
+          console.error("Error fetching gifts:", giftsError);
+          toast({
+            variant: "destructive",
+            title: "Erro ao carregar presentes",
+            description: giftsError.message,
+          });
+        } else if (giftsData) {
+          console.log("Gifts data:", giftsData);
+          
+          setGifts(giftsData.map(gift => ({
+            id: gift.id,
+            name: gift.name,
+            emoji: gift.emoji,
+            price: gift.price.toString()
+          })));
+        }
+      } catch (err) {
+        console.error("Exception fetching gifts:", err);
       }
       
-      console.log("Gifts data:", giftsData);
-      
-      setGifts(giftsData.map(gift => ({
-        id: gift.id,
-        name: gift.name,
-        emoji: gift.emoji,
-        price: gift.price.toString()
-      })));
-      
-      // Fetch agents
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
-        .select('*');
-        
-      if (agentsError) {
-        console.error("Error fetching agents:", agentsError);
-        throw agentsError;
+      // Fetch agents with error handling
+      try {
+        const { data: agentsData, error: agentsError } = await supabase
+          .from('agents')
+          .select('*');
+          
+        if (agentsError) {
+          console.error("Error fetching agents:", agentsError);
+          toast({
+            variant: "destructive",
+            title: "Erro ao carregar agentes",
+            description: agentsError.message,
+          });
+        } else if (agentsData) {
+          console.log("Agents data:", agentsData);
+          
+          setAgents(agentsData.map(agent => ({
+            id: agent.id,
+            name: agent.name,
+            gender: agent.gender as "male" | "female",
+            image: agent.image
+          })));
+        }
+      } catch (err) {
+        console.error("Exception fetching agents:", err);
       }
       
-      console.log("Agents data:", agentsData);
-      
-      setAgents(agentsData.map(agent => ({
-        id: agent.id,
-        name: agent.name,
-        gender: agent.gender as "male" | "female",
-        image: agent.image
-      })));
-      
-      // Fetch users (combine profiles and subscriptions)
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-        
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        throw profilesError;
+      // Fetch users (profiles) with error handling
+      try {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*');
+          
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          toast({
+            variant: "destructive",
+            title: "Erro ao carregar perfis de usuários",
+            description: profilesError.message,
+          });
+        } else if (profilesData) {
+          console.log("Profiles data:", profilesData);
+          
+          // Try to fetch subscriptions
+          let subscriptionsData = [];
+          try {
+            const { data: subData, error: subError } = await supabase
+              .from('user_subscriptions')
+              .select('*');
+              
+            if (subError) {
+              console.error("Error fetching subscriptions:", subError);
+            } else if (subData) {
+              subscriptionsData = subData;
+            }
+          } catch (err) {
+            console.error("Exception fetching subscriptions:", err);
+          }
+          
+          // Create user list with or without subscription data
+          const usersList = profilesData.map(profile => {
+            const subscription = subscriptionsData.find((sub: any) => sub.user_id === profile.id);
+            return {
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              country: profile.country,
+              plan: subscription ? subscription.plan_id : 'none'
+            };
+          });
+          
+          setUsers(usersList);
+        }
+      } catch (err) {
+        console.error("Exception fetching user profiles:", err);
       }
       
-      console.log("Profiles data:", profilesData);
-      
-      const { data: subscriptionsData, error: subscriptionsError } = await supabase
-        .from('user_subscriptions')
-        .select('*');
-        
-      if (subscriptionsError) {
-        console.error("Error fetching subscriptions:", subscriptionsError);
-        throw subscriptionsError;
-      }
-      
-      console.log("Subscriptions data:", subscriptionsData);
-      
-      const usersList = profilesData.map(profile => {
-        const subscription = subscriptionsData.find(sub => sub.user_id === profile.id);
-        return {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          country: profile.country,
-          plan: subscription ? subscription.plan_id : 'none'
-        };
-      });
-      
-      setUsers(usersList);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching admin data:", error);
       toast({
         variant: "destructive",
         title: "Erro",
@@ -236,7 +275,12 @@ const Admin = () => {
         
       if (error) {
         console.error("Error updating plan:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao atualizar o plano: ${error.message}`,
+        });
+        return;
       }
       
       console.log("Plan updated successfully");
@@ -250,12 +294,12 @@ const Admin = () => {
         title: "Plano atualizado",
         description: `O plano ${id} foi atualizado com sucesso.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating plan:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao atualizar o plano.",
+        description: `Ocorreu um erro ao atualizar o plano: ${error.message}`,
       });
     }
   };
@@ -270,6 +314,17 @@ const Admin = () => {
       return;
     }
 
+    // Validar o preço como um número
+    const priceValue = parseFloat(newGift.price);
+    if (isNaN(priceValue)) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar presente",
+        description: "O preço deve ser um número válido.",
+      });
+      return;
+    }
+
     try {
       console.log("Adding new gift:", newGift);
       
@@ -278,13 +333,28 @@ const Admin = () => {
         .insert({
           name: newGift.name,
           emoji: newGift.emoji,
-          price: parseFloat(newGift.price)
+          price: priceValue
         })
         .select();
         
       if (error) {
         console.error("Error adding gift:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao adicionar presente: ${error.message}`,
+        });
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.error("No data returned after adding gift");
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível adicionar o presente. Nenhum dado retornado.",
+        });
+        return;
       }
       
       console.log("Gift added successfully:", data);
@@ -303,12 +373,12 @@ const Admin = () => {
         title: "Presente adicionado",
         description: `${newGift.name} foi adicionado com sucesso.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding gift:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao adicionar o presente.",
+        description: `Ocorreu um erro ao adicionar o presente: ${error.message}`,
       });
     }
   };
@@ -324,7 +394,12 @@ const Admin = () => {
         
       if (error) {
         console.error("Error deleting gift:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao remover o presente: ${error.message}`,
+        });
+        return;
       }
       
       console.log("Gift deleted successfully");
@@ -336,12 +411,12 @@ const Admin = () => {
         title: "Presente removido",
         description: "O presente foi removido com sucesso.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting gift:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao remover o presente.",
+        description: `Ocorreu um erro ao remover o presente: ${error.message}`,
       });
     }
   };
@@ -351,7 +426,16 @@ const Admin = () => {
       // Prepare data based on field type
       const updateData: any = {};
       if (field === 'price') {
-        updateData[field] = parseFloat(value);
+        const priceValue = parseFloat(value);
+        if (isNaN(priceValue)) {
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "O preço deve ser um número válido.",
+          });
+          return;
+        }
+        updateData[field] = priceValue;
       } else {
         updateData[field] = value;
       }
@@ -365,7 +449,12 @@ const Admin = () => {
         
       if (error) {
         console.error("Error updating gift:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao atualizar o presente: ${error.message}`,
+        });
+        return;
       }
       
       console.log("Gift updated successfully");
@@ -379,12 +468,12 @@ const Admin = () => {
         title: "Presente atualizado",
         description: "Presente atualizado com sucesso.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating gift:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao atualizar o presente.",
+        description: `Ocorreu um erro ao atualizar o presente: ${error.message}`,
       });
     }
   };
@@ -413,7 +502,22 @@ const Admin = () => {
         
       if (error) {
         console.error("Error adding agent:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao adicionar o perfil: ${error.message}`,
+        });
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.error("No data returned after adding agent");
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível adicionar o perfil. Nenhum dado retornado.",
+        });
+        return;
       }
       
       console.log("Agent added successfully:", data);
@@ -434,12 +538,12 @@ const Admin = () => {
         title: "Perfil adicionado",
         description: `${newAgent.name} foi adicionado com sucesso.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding agent:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao adicionar o perfil.",
+        description: `Ocorreu um erro ao adicionar o perfil: ${error.message}`,
       });
     }
   };
@@ -455,7 +559,12 @@ const Admin = () => {
         
       if (error) {
         console.error("Error deleting agent:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao remover o perfil: ${error.message}`,
+        });
+        return;
       }
       
       console.log("Agent deleted successfully");
@@ -467,12 +576,12 @@ const Admin = () => {
         title: "Perfil removido",
         description: "O perfil foi removido com sucesso.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting agent:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao remover o perfil.",
+        description: `Ocorreu um erro ao remover o perfil: ${error.message}`,
       });
     }
   };
@@ -502,7 +611,12 @@ const Admin = () => {
         
       if (error) {
         console.error("Error updating agent:", error);
-        throw error;
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao atualizar o perfil: ${error.message}`,
+        });
+        return;
       }
       
       console.log("Agent updated successfully");
@@ -525,12 +639,12 @@ const Admin = () => {
         title: "Perfil atualizado",
         description: "Perfil atualizado com sucesso.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating agent:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao atualizar o perfil.",
+        description: `Ocorreu um erro ao atualizar o perfil: ${error.message}`,
       });
     }
   };
@@ -557,6 +671,14 @@ const Admin = () => {
     setShowLoginDialog(true);
   };
 
+  const handleRefresh = () => {
+    fetchData();
+    toast({
+      title: "Dados atualizados",
+      description: "Os dados foram atualizados com sucesso."
+    });
+  };
+
   if (isLoading && !showLoginDialog) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -580,9 +702,22 @@ const Admin = () => {
           <header className="bg-purple-600 text-white p-4 shadow-md">
             <div className="container mx-auto flex justify-between items-center">
               <h1 className="text-xl font-bold">Painel Administrativo</h1>
-              <Button variant="ghost" className="text-white" onClick={handleLogout}>
-                Sair
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  className="text-white" 
+                  onClick={handleRefresh}
+                >
+                  Atualizar Dados
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="text-white" 
+                  onClick={handleLogout}
+                >
+                  Sair
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -634,6 +769,9 @@ const Admin = () => {
                           />
                           <Input
                             placeholder="Preço (ex: 5.00)"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             value={newGift.price}
                             onChange={(e) => setNewGift({ ...newGift, price: e.target.value })}
                           />
@@ -642,35 +780,44 @@ const Admin = () => {
 
                         <div className="border rounded-md p-4">
                           <h3 className="text-lg font-medium mb-4">Presentes disponíveis</h3>
-                          <div className="grid gap-4">
-                            {gifts.map((gift) => (
-                              <div key={gift.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
-                                <span className="text-2xl">{gift.emoji}</span>
-                                <Input
-                                  value={gift.name}
-                                  onChange={(e) => handleEditGift(gift.id, "name", e.target.value)}
-                                />
-                                <Input
-                                  value={gift.emoji}
-                                  onChange={(e) => handleEditGift(gift.id, "emoji", e.target.value)}
-                                />
-                                <div className="flex items-center">
-                                  <span className="mr-1">R$</span>
+                          {gifts.length === 0 ? (
+                            <div className="text-center py-4 text-gray-500">
+                              Nenhum presente encontrado. Adicione um novo presente acima.
+                            </div>
+                          ) : (
+                            <div className="grid gap-4">
+                              {gifts.map((gift) => (
+                                <div key={gift.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
+                                  <span className="text-2xl">{gift.emoji}</span>
                                   <Input
-                                    value={gift.price}
-                                    onChange={(e) => handleEditGift(gift.id, "price", e.target.value)}
+                                    value={gift.name}
+                                    onChange={(e) => handleEditGift(gift.id, "name", e.target.value)}
                                   />
+                                  <Input
+                                    value={gift.emoji}
+                                    onChange={(e) => handleEditGift(gift.id, "emoji", e.target.value)}
+                                  />
+                                  <div className="flex items-center">
+                                    <span className="mr-1">R$</span>
+                                    <Input
+                                      value={gift.price}
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      onChange={(e) => handleEditGift(gift.id, "price", e.target.value)}
+                                    />
+                                  </div>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDeleteGift(gift.id)}
+                                  >
+                                    Excluir
+                                  </Button>
                                 </div>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDeleteGift(gift.id)}
-                                >
-                                  Excluir
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -686,35 +833,44 @@ const Admin = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-6">
-                      {plans.filter(plan => plan.id !== 'admin').map((plan) => (
-                        <div key={plan.id} className="border p-4 rounded-md">
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <h3 className="font-medium">{plan.name}</h3>
-                              <p className="text-sm text-gray-500">{plan.description}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span>R$</span>
-                              <Input
-                                value={plan.price}
-                                onChange={(e) => handleUpdatePlan(plan.id, "price", e.target.value)}
-                              />
-                              <span>/{plan.duration}</span>
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Benefícios:</h4>
-                            <ul className="space-y-1 text-sm">
-                              {plan.features.map((feature, idx) => (
-                                <li key={idx} className="flex items-center gap-2">
-                                  <span>•</span>
-                                  <span>{feature}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                      {plans.length === 0 ? (
+                        <div className="text-center py-4 text-gray-500">
+                          Nenhum plano encontrado. Clique em Atualizar Dados para tentar novamente.
                         </div>
-                      ))}
+                      ) : (
+                        plans.filter(plan => plan.id !== 'admin').map((plan) => (
+                          <div key={plan.id} className="border p-4 rounded-md">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <h3 className="font-medium">{plan.name}</h3>
+                                <p className="text-sm text-gray-500">{plan.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span>R$</span>
+                                <Input
+                                  value={plan.price}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  onChange={(e) => handleUpdatePlan(plan.id, "price", e.target.value)}
+                                />
+                                <span>/{plan.duration}</span>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Benefícios:</h4>
+                              <ul className="space-y-1 text-sm">
+                                {plan.features.map((feature, idx) => (
+                                  <li key={idx} className="flex items-center gap-2">
+                                    <span>•</span>
+                                    <span>{feature}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -727,28 +883,34 @@ const Admin = () => {
                     <CardDescription>Visualize todos os usuários registrados</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-gray-50">
-                            <th className="p-2 text-left font-medium">Nome</th>
-                            <th className="p-2 text-left font-medium">Email</th>
-                            <th className="p-2 text-left font-medium">País</th>
-                            <th className="p-2 text-left font-medium">Plano</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {users.map((user) => (
-                            <tr key={user.id} className="border-b hover:bg-gray-50">
-                              <td className="p-2">{user.name}</td>
-                              <td className="p-2">{user.email}</td>
-                              <td className="p-2">{user.country}</td>
-                              <td className="p-2 capitalize">{user.plan}</td>
+                    {users.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        Nenhum usuário encontrado. Clique em Atualizar Dados para tentar novamente.
+                      </div>
+                    ) : (
+                      <div className="rounded-md border">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-gray-50">
+                              <th className="p-2 text-left font-medium">Nome</th>
+                              <th className="p-2 text-left font-medium">Email</th>
+                              <th className="p-2 text-left font-medium">País</th>
+                              <th className="p-2 text-left font-medium">Plano</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {users.map((user) => (
+                              <tr key={user.id} className="border-b hover:bg-gray-50">
+                                <td className="p-2">{user.name}</td>
+                                <td className="p-2">{user.email}</td>
+                                <td className="p-2">{user.country}</td>
+                                <td className="p-2 capitalize">{user.plan}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -786,38 +948,47 @@ const Admin = () => {
 
                         <div className="border rounded-md p-4">
                           <h3 className="text-lg font-medium mb-4">Perfis disponíveis</h3>
-                          <div className="grid gap-4">
-                            {agents.map((agent) => (
-                              <div key={agent.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
-                                <Avatar className="h-12 w-12">
-                                  <img src={agent.image} alt={agent.name} className="object-cover" />
-                                </Avatar>
-                                <Input
-                                  value={agent.name}
-                                  onChange={(e) => handleEditAgent(agent.id, "name", e.target.value)}
-                                />
-                                <select
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
-                                  value={agent.gender}
-                                  onChange={(e) => handleEditAgent(agent.id, "gender", e.target.value)}
-                                >
-                                  <option value="female">Feminino</option>
-                                  <option value="male">Masculino</option>
-                                </select>
-                                <Input
-                                  value={agent.image}
-                                  onChange={(e) => handleEditAgent(agent.id, "image", e.target.value)}
-                                />
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDeleteAgent(agent.id)}
-                                >
-                                  Excluir
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
+                          {agents.length === 0 ? (
+                            <div className="text-center py-4 text-gray-500">
+                              Nenhum perfil encontrado. Adicione um novo perfil acima.
+                            </div>
+                          ) : (
+                            <div className="grid gap-4">
+                              {agents.map((agent) => (
+                                <div key={agent.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
+                                  <Avatar className="h-12 w-12">
+                                    <img src={agent.image} alt={agent.name} className="object-cover" onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = 'https://via.placeholder.com/150?text=Erro';
+                                    }} />
+                                  </Avatar>
+                                  <Input
+                                    value={agent.name}
+                                    onChange={(e) => handleEditAgent(agent.id, "name", e.target.value)}
+                                  />
+                                  <select
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
+                                    value={agent.gender}
+                                    onChange={(e) => handleEditAgent(agent.id, "gender", e.target.value)}
+                                  >
+                                    <option value="female">Feminino</option>
+                                    <option value="male">Masculino</option>
+                                  </select>
+                                  <Input
+                                    value={agent.image}
+                                    onChange={(e) => handleEditAgent(agent.id, "image", e.target.value)}
+                                  />
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDeleteAgent(agent.id)}
+                                  >
+                                    Excluir
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
