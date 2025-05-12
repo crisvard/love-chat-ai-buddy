@@ -56,37 +56,64 @@ const Login = () => {
     try {
       // Special admin login for the specific account
       if (email === 'armempires@gmail.com' && password === 'mudar123') {
+        console.log("Trying special admin login for armempires@gmail.com");
         const success = await login('admin@example.com', 'adminpassword');
         if (success) {
+          console.log("Admin login successful, redirecting to /admin");
           navigate("/admin");
           return;
+        } else {
+          console.log("Admin login failed despite correct credentials");
+          throw new Error("Falha na autenticação de administrador");
         }
       }
       
       // Special admin login for backward compatibility
       if (email === 'admin' && password === 'admin') {
+        console.log("Trying special admin login");
         const success = await login('admin@example.com', 'adminpassword');
         if (success) {
+          console.log("Admin login successful, redirecting to /admin");
           navigate("/admin");
+        } else {
+          console.log("Admin login failed despite correct credentials");
+          throw new Error("Falha na autenticação de administrador");
         }
         return;
       }
       
       // Special user login for backward compatibility
       if (email === 'user' && password === 'user') {
+        console.log("Trying special user login");
         const success = await login('user@example.com', 'userpassword');
         if (success) {
+          console.log("User login successful, redirecting to /chat");
           navigate("/chat");
+        } else {
+          console.log("User login failed despite correct credentials");
+          throw new Error("Falha na autenticação de usuário");
         }
         return;
       }
       
+      console.log(`Attempting regular login for: ${email}`);
       const success = await login(email, password);
       
       if (success) {
+        console.log("Login successful, redirecting to /chat");
         // Redirect to appropriate page
         navigate("/chat");
+      } else {
+        console.log("Login failed with unknown reason");
+        throw new Error("Falha na autenticação. Verifique suas credenciais.");
       }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast({
+        title: "Erro no login",
+        description: error.message || "Falha na autenticação. Verifique suas credenciais.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

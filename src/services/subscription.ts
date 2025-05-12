@@ -13,6 +13,7 @@ export interface Subscription {
 // Function to check if a plan allows a specific feature
 export const canUseFeature = async (planId: string, feature: "audio" | "voice" | "video"): Promise<boolean> => {
   try {
+    console.log(`Checking if plan ${planId} allows feature ${feature}`);
     // Get the plan from Supabase
     const { data: plan, error } = await supabase
       .from('plans')
@@ -35,6 +36,7 @@ export const canUseFeature = async (planId: string, feature: "audio" | "voice" |
     }
     
     const features = plan.features as string[];
+    console.log(`Plan features for ${planId}:`, features);
     
     switch (feature) {
       case "audio":
@@ -55,16 +57,20 @@ export const canUseFeature = async (planId: string, feature: "audio" | "voice" |
 // Function to check if trial period has expired
 export const isTrialActive = (endDate: Date | null): boolean => {
   if (!endDate) return false;
-  return new Date() < new Date(endDate);
+  const isActive = new Date() < new Date(endDate);
+  console.log(`Trial active check: ${isActive}`, endDate);
+  return isActive;
 };
 
 // Get the current user's subscription from Supabase
 export const getCurrentSubscription = async (): Promise<{planId: string, endDate: Date | null}> => {
+  console.log("Getting current subscription");
   // First check if user is authenticated
   const { data: { session } } = await supabase.auth.getSession();
   
   if (session?.user) {
     try {
+      console.log("User session found:", session.user.id);
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('plan_id, end_date')
@@ -72,15 +78,21 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
         .eq('is_active', true)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching subscription from DB:", error);
+        throw error;
+      }
       
+      console.log("Subscription data from DB:", data);
       return { 
         planId: data.plan_id, 
         endDate: data.end_date ? new Date(data.end_date) : null
       };
     } catch (error) {
-      console.error("Error fetching subscription:", error);
+      console.error("Error in getCurrentSubscription:", error);
     }
+  } else {
+    console.log("No user session found, checking localStorage");
   }
   
   // Fallback to localStorage for backwards compatibility
@@ -88,6 +100,7 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
   
   if (storedSubscription) {
     try {
+      console.log("Found stored subscription in localStorage");
       const subscription = JSON.parse(storedSubscription);
       return { 
         planId: subscription.plan_id, 
@@ -96,9 +109,12 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
     } catch (error) {
       console.error("Error parsing subscription data:", error);
     }
+  } else {
+    console.log("No stored subscription in localStorage");
   }
   
   // Default to free trial if no subscription is found
+  console.log("Defaulting to free trial");
   const trialEndDate = new Date();
   trialEndDate.setDate(trialEndDate.getDate() + 3); // 3 day trial
   
@@ -107,6 +123,7 @@ export const getCurrentSubscription = async (): Promise<{planId: string, endDate
 
 // Function to update subscription in Supabase
 export const setCurrentSubscription = async (planId: string, endDate: Date | null, userId: string): Promise<void> => {
+  console.log(`Setting subscription: ${planId} for user ${userId}`);
   // Local storage update for backwards compatibility
   const subscription = {
     plan_id: planId,
@@ -116,10 +133,12 @@ export const setCurrentSubscription = async (planId: string, endDate: Date | nul
   };
   
   localStorage.setItem("userSubscription", JSON.stringify(subscription));
+  console.log("Saved subscription to localStorage");
 
   // For Supabase
   if (userId) {
     try {
+      console.log("Updating subscription in Supabase");
       const { error } = await supabase
         .from('user_subscriptions')
         .upsert({
@@ -132,6 +151,8 @@ export const setCurrentSubscription = async (planId: string, endDate: Date | nul
         
       if (error) {
         console.error("Error updating subscription in Supabase:", error);
+      } else {
+        console.log("Successfully updated subscription in Supabase");
       }
     } catch (error) {
       console.error("Error in Supabase upsert:", error);
