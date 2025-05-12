@@ -54,6 +54,15 @@ const Login = () => {
     setIsLoading(true);
     
     try {
+      // Special admin login for the specific account
+      if (email === 'armempires@gmail.com' && password === 'mudar123') {
+        const success = await login('admin@example.com', 'adminpassword');
+        if (success) {
+          navigate("/admin");
+          return;
+        }
+      }
+      
       // Special admin login for backward compatibility
       if (email === 'admin' && password === 'admin') {
         const success = await login('admin@example.com', 'adminpassword');
