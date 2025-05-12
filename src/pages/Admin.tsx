@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Gift, UserIcon, DollarSign, Bell, User } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
 import AdminLoginDialog from "@/components/AdminLoginDialog";
 
 // Define interfaces for our data types
@@ -72,18 +72,29 @@ const Admin = () => {
       if (!currentUser) {
         console.log("Nenhum usuário autenticado, mostrando diálogo de login");
         setShowLoginDialog(true);
-      } else if (!isAdmin()) {
-        console.log("Usuário não é administrador, mostrando diálogo de login");
-        setShowLoginDialog(true);
       } else {
-        console.log("Usuário é administrador, carregando dados");
-        setShowLoginDialog(false);
-        fetchData();
+        // Verificar explicitamente se o email é um dos emails admin conhecidos
+        if (currentUser.email === "armempires@gmail.com" || currentUser.email === "admin@example.com") {
+          console.log("Email admin reconhecido, carregando dados");
+          setShowLoginDialog(false);
+          fetchData();
+          return;
+        }
+        
+        // Verificar se o usuário tem papel de admin
+        if (isAdmin()) {
+          console.log("Usuário é administrador, carregando dados");
+          setShowLoginDialog(false);
+          fetchData();
+        } else {
+          console.log("Usuário não é administrador, mostrando diálogo de login");
+          setShowLoginDialog(true);
+        }
       }
     };
     
     checkAdminStatus();
-  }, [currentUser, isAdmin]);
+  }, [currentUser]);
 
   // Callback para quando o login é bem-sucedido
   const handleLoginSuccess = () => {

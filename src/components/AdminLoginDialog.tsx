@@ -31,79 +31,87 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
     setIsLoading(true);
     
     try {
-      console.log(`Tentando login admin direto com: ${email}`);
+      console.log(`Tentando login admin com: ${email}`);
       
-      // Check for admin credentials
+      // Verificar diretamente as credenciais de admin hardcoded
       if (email === 'armempires@gmail.com' && password === 'mudar123') {
-        try {
-          // Try direct login
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+        
+        if (error) {
+          console.error("Falha no login direto: ", error.message);
+          
+          // Tentar fallback login com admin@example.com
+          const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
+            email: 'admin@example.com',
+            password: 'adminpassword'
           });
           
-          if (error) {
-            // Try fallback admin credentials
-            console.log("Login direto falhou, tentando com admin@example.com");
-            const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
-              email: 'admin@example.com',
-              password: 'adminpassword'
-            });
-            
-            if (adminError) {
-              throw new Error("Falha na autenticação de administrador");
-            } else {
-              console.log("Login admin bem-sucedido via fallback");
-              
-              // Set admin subscription
-              if (adminData.user) {
-                try {
-                  await supabase
-                    .from('user_subscriptions')
-                    .upsert({
-                      user_id: adminData.user.id,
-                      plan_id: 'admin',
-                      start_date: new Date().toISOString(),
-                      end_date: null,
-                      is_active: true
-                    }, { onConflict: 'user_id' });
-                } catch (err) {
-                  console.error("Erro ao configurar o plano admin:", err);
-                }
-              }
-              
-              onLoginSuccess();
-              return;
-            }
+          if (adminError) {
+            throw new Error("Falha na autenticação de administrador. Verifique suas credenciais.");
           } else {
-            // Direct login succeeded, ensure admin role
-            console.log("Login direto admin bem-sucedido");
-            if (data.user) {
+            console.log("Login admin bem-sucedido via fallback");
+            
+            // Configurar assinatura admin
+            if (adminData.user) {
               try {
                 await supabase
                   .from('user_subscriptions')
                   .upsert({
-                    user_id: data.user.id,
+                    user_id: adminData.user.id,
                     plan_id: 'admin',
                     start_date: new Date().toISOString(),
                     end_date: null,
                     is_active: true
                   }, { onConflict: 'user_id' });
+                  
+                console.log("Plano admin configurado com sucesso");
+                toast({
+                  title: "Login realizado",
+                  description: "Login de administrador bem-sucedido!",
+                });
+                onLoginSuccess();
+                return;
               } catch (err) {
                 console.error("Erro ao configurar o plano admin:", err);
               }
             }
-            
-            onLoginSuccess();
-            return;
           }
-        } catch (error) {
-          console.error("Erro no login admin:", error);
-          throw error;
+        } else {
+          // Login direto bem-sucedido
+          console.log("Login direto de administrador bem-sucedido");
+          
+          // Garantir papel de administrador
+          if (data.user) {
+            try {
+              await supabase
+                .from('user_subscriptions')
+                .upsert({
+                  user_id: data.user.id,
+                  plan_id: 'admin',
+                  start_date: new Date().toISOString(),
+                  end_date: null,
+                  is_active: true
+                }, { onConflict: 'user_id' });
+                
+              console.log("Plano admin configurado com sucesso");
+            } catch (err) {
+              console.error("Erro ao configurar o plano admin:", err);
+            }
+          }
+          
+          toast({
+            title: "Login realizado",
+            description: "Login de administrador bem-sucedido!",
+          });
+          onLoginSuccess();
+          return;
         }
       }
       
-      // Special admin login fallback 
+      // Login admin especial (fallback)
       if (email === 'admin' && password === 'admin') {
         console.log("Tentando login admin especial");
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -115,12 +123,16 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
           throw new Error("Falha na autenticação de administrador");
         }
         
-        console.log("Login admin bem-sucedido, redirecionando");
+        console.log("Login admin bem-sucedido via credenciais especiais");
+        toast({
+          title: "Login realizado",
+          description: "Login de administrador bem-sucedido!",
+        });
         onLoginSuccess();
         return;
       }
       
-      // Regular login attempt
+      // Tentativa de login padrão
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
@@ -128,7 +140,7 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
       
       if (error) throw error;
       
-      // Check if user is admin via subscription
+      // Verificar se o usuário é admin via subscription
       if (data.user) {
         const { data: subscription, error: subError } = await supabase
           .from('user_subscriptions')
@@ -143,6 +155,10 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
       }
       
       console.log("Login bem-sucedido");
+      toast({
+        title: "Login realizado",
+        description: "Login de administrador bem-sucedido!",
+      });
       onLoginSuccess();
       
     } catch (error: any) {
@@ -158,7 +174,7 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
   };
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Acesso de Administrador</DialogTitle>

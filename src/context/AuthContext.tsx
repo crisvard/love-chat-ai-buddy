@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
@@ -41,8 +40,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // First check if user email is a known admin email
       const { data: userInfo } = await supabase.auth.getUser();
-      if (userInfo?.user?.email === "armempires@gmail.com" || userInfo?.user?.email === "admin@example.com") {
-        console.log("Admin detected via email");
+      const adminEmails = ["armempires@gmail.com", "admin@example.com"];
+      
+      if (userInfo?.user?.email && adminEmails.includes(userInfo.user.email)) {
+        console.log("Admin detectado via email:", userInfo.user.email);
         return true;
       }
       
@@ -55,13 +56,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (!error && subscription) {
-        console.log("Admin detected via subscription table");
+        console.log("Admin detectado via tabela de assinaturas");
         return true;
       }
       
       return false;
     } catch (error) {
-      console.error("Error checking admin status:", error);
+      console.error("Erro ao verificar status de admin:", error);
       return false;
     }
   };
@@ -185,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
-        console.error("Login error:", error);
+        console.error("Erro no login:", error);
         toast({
           title: "Erro ao fazer login",
           description: error.message,
@@ -194,11 +195,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
       
-      console.log("Login successful:", data);
+      console.log("Login bem-sucedido:", data);
       
       // Handle special case for admin
-      if (email === "armempires@gmail.com" || email === "admin@example.com") {
-        console.log("Setting admin plan for admin user");
+      const adminEmails = ["armempires@gmail.com", "admin@example.com"];
+      if (adminEmails.includes(email)) {
+        console.log("Configurando plano admin para usuário admin");
         try {
           const { error } = await supabase
             .from('user_subscriptions')
@@ -211,16 +213,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }, { onConflict: 'user_id' });
             
           if (error) {
-            console.error("Error setting admin plan:", error);
+            console.error("Erro ao configurar plano admin:", error);
           }
         } catch (err) {
-          console.error("Error setting admin plan:", err);
+          console.error("Erro ao configurar plano admin:", err);
         }
       }
       
       return true;
     } catch (error: any) {
-      console.error("Exception during login:", error);
+      console.error("Exceção durante login:", error);
       toast({
         title: "Erro ao fazer login",
         description: error.message,
@@ -311,10 +313,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
-    console.log("Checking if user is admin:", currentUser?.role);
+    console.log("Verificando se usuário é admin:", currentUser?.role);
+    
+    // Liste explicitamente todos os emails de admin conhecidos
+    const adminEmails = ["armempires@gmail.com", "admin@example.com"];
+    
     return currentUser?.role === 'admin' || 
-           currentUser?.email === 'armempires@gmail.com' || 
-           currentUser?.email === 'admin@example.com';
+           (currentUser?.email && adminEmails.includes(currentUser.email));
   };
 
   const value = {
