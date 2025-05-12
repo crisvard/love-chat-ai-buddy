@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('plan_id')
         .eq('user_id', userId)
         .eq('plan_id', 'admin')
-        .single();
+        .maybeSingle();
       
       if (!error && subscription) {
         console.log("Admin detectado via tabela de assinaturas");

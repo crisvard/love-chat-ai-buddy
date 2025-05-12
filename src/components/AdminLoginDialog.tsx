@@ -33,7 +33,7 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
     try {
       console.log(`Tentando login admin com: ${email}`);
       
-      // Usar credenciais diretas para login administrativo
+      // Verificar se está usando credenciais administrativas
       if ((email === 'armempires@gmail.com' && password === 'mudar123') || 
           (email === 'admin' && password === 'admin')) {
         
@@ -57,6 +57,40 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
         }
         
         console.log("Direct admin login successful");
+        
+        // Após login bem-sucedido, verificar se o usuário já tem plano de administrador
+        // Se não tiver, configurar automaticamente
+        try {
+          const { data: subsData, error: subsError } = await supabase
+            .from('user_subscriptions')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .eq('plan_id', 'admin')
+            .maybeSingle();
+            
+          if (subsError) {
+            console.error("Erro ao verificar plano de administrador:", subsError);
+          }
+          
+          if (!subsData) {
+            console.log("Criando plano de administrador para o usuário");
+            const { error: insertError } = await supabase
+              .from('user_subscriptions')
+              .upsert({
+                user_id: data.user.id,
+                plan_id: 'admin',
+                start_date: new Date().toISOString(),
+                end_date: null,
+                is_active: true
+              });
+              
+            if (insertError) {
+              console.error("Erro ao criar plano de administrador:", insertError);
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao configurar plano de administrador:", e);
+        }
         
         toast({
           title: "Login realizado",

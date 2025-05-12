@@ -28,6 +28,9 @@ export const supabase = createClient<Database>(
       headers: {
         'x-application-name': 'admin-portal'
       },
+    },
+    db: {
+      schema: 'public'
     }
   }
 );
