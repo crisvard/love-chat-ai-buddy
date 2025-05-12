@@ -975,4 +975,4 @@ const Admin = () => {
                             ) : (
                               <div className="grid gap-4">
                                 {agents.map((agent) => (
-                                  <div key={agent.id} className="grid grid-cols-5 items-center gap-4
+                                  <div key={agent.id} className="grid grid-cols-5 items-center gap
