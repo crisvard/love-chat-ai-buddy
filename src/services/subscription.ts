@@ -54,7 +54,8 @@ export const getCurrentSubscription = (): {planId: string, endDate: Date | null}
 
 // Function to update subscription in localStorage (for demo purposes)
 // In a real app, this would update the Supabase record
-export const setCurrentSubscription = (planId: string, endDate: Date | null): void => {
+export const setCurrentSubscription = async (planId: string, endDate: Date | null, userId: string): Promise<void> => {
+  // Local storage update for demo
   const subscription = {
     plan_id: planId,
     start_date: new Date(),
@@ -63,4 +64,25 @@ export const setCurrentSubscription = (planId: string, endDate: Date | null): vo
   };
   
   localStorage.setItem("userSubscription", JSON.stringify(subscription));
+
+  // For a real app with Supabase
+  if (userId) {
+    try {
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .upsert([{
+          user_id: userId,
+          plan_id: planId,
+          start_date: new Date(),
+          end_date: endDate,
+          is_active: true
+        }], { onConflict: 'user_id' });
+        
+      if (error) {
+        console.error("Error updating subscription in Supabase:", error);
+      }
+    } catch (error) {
+      console.error("Error in Supabase upsert:", error);
+    }
+  }
 };
