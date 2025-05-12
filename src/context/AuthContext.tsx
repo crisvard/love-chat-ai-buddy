@@ -35,9 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Mock login function - in a real app, this would connect to Firebase or another auth provider
+  // Login function with fixed admin login credentials
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock admin login
+    // Admin login - use exactly "admin" for both email and password
     if (email === 'admin' && password === 'admin') {
       const adminUser = {
         email: 'admin@example.com',
@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     }
     
-    // Mock regular user login (any email/password combination for demo purposes)
+    // Regular user login (any email/password combination for demo purposes)
     if (email && password) {
       const user = {
         email: email,

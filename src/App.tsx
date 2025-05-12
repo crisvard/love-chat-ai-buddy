@@ -11,29 +11,54 @@ import Personalize from "./pages/Personalize";
 import Chat from "./pages/Chat";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Protected route component for admin access
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { currentUser, isAdmin } = useAuth();
+  
+  if (!currentUser || !isAdmin()) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// App wrapper with Auth provider
+const AppWithAuth = () => {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/personalize" element={<Personalize />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
+            } 
+          />
+          {/* Catch-all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/personalize" element={<Personalize />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/admin" element={<Admin />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+      <AppWithAuth />
     </TooltipProvider>
   </QueryClientProvider>
 );

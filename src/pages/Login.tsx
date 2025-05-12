@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -49,19 +48,26 @@ const Login = () => {
       const success = await login(data.email, data.password);
       
       if (success) {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: data.email === 'admin' ? "Redirecionando para o painel admin..." : "Redirecionando para o chat...",
-        });
-        
-        // Redirect based on user type
-        setTimeout(() => {
-          if (data.email === 'admin') {
+        // Special handling for admin login
+        if (data.email === 'admin' && data.password === 'admin') {
+          toast({
+            title: "Admin login realizado com sucesso!",
+            description: "Redirecionando para o painel administrativo...",
+          });
+          
+          setTimeout(() => {
             navigate("/admin");
-          } else {
+          }, 1000);
+        } else {
+          toast({
+            title: "Login realizado com sucesso!",
+            description: "Redirecionando para o chat...",
+          });
+          
+          setTimeout(() => {
             navigate("/chat");
-          }
-        }, 1000);
+          }, 1000);
+        }
       } else {
         toast({
           variant: "destructive",
@@ -118,6 +124,9 @@ const Login = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-purple-700">Entrar</h1>
           <p className="text-gray-600 mt-2">Entre para conversar com seu namorado virtual</p>
+          <p className="text-sm text-gray-500 mt-1">
+            (Use "admin" como usuário e senha para acessar o painel administrativo)
+          </p>
         </div>
 
         {/* Botões de login social */}
