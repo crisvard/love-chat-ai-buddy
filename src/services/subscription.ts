@@ -73,8 +73,8 @@ export const setCurrentSubscription = async (planId: string, endDate: Date | nul
         .upsert([{
           user_id: userId,
           plan_id: planId,
-          start_date: new Date(),
-          end_date: endDate,
+          start_date: new Date().toISOString(), // Fix: Convert Date to ISO string
+          end_date: endDate ? endDate.toISOString() : null, // Fix: Convert Date to ISO string or null
           is_active: true
         }], { onConflict: 'user_id' });
         

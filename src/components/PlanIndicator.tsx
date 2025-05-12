@@ -123,14 +123,14 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
       // In a real app, this would connect to a payment processor
       const endDate = planId === "free" ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) : null; // 3 days for free trial
       
-      // Fix: Pass an array with a single object to upsert instead of a direct object
+      // Fix: Convert Date objects to ISO strings for Supabase compatibility
       const { error } = await supabase
         .from('user_subscriptions')
         .upsert([{
           user_id: currentUser.email, // Using email as user_id for demo
           plan_id: planId,
-          start_date: new Date(),
-          end_date: endDate,
+          start_date: new Date().toISOString(),
+          end_date: endDate ? endDate.toISOString() : null,
           is_active: true
         }], { onConflict: 'user_id' });
 
