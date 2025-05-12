@@ -110,6 +110,7 @@ export type Database = {
       }
       user_agent_selections: {
         Row: {
+          agent_avatar: string | null
           agent_id: string
           created_at: string
           id: string
@@ -118,6 +119,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_avatar?: string | null
           agent_id: string
           created_at?: string
           id?: string
@@ -126,6 +128,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_avatar?: string | null
           agent_id?: string
           created_at?: string
           id?: string
