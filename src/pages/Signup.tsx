@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -27,14 +26,14 @@ const Signup = () => {
   const [isAdult, setIsAdult] = useState(false);
   const [planInfo, setPlanInfo] = useState<any>(null);
 
-  // If user is already logged in, redirect to personalize page
+  // Se o usuário já estiver logado, redirecionar para a página de personalização
   useEffect(() => {
     if (currentUser) {
       navigate("/personalize");
     }
   }, [currentUser, navigate]);
 
-  // Fetch plan details from Supabase
+  // Buscar detalhes do plano do Supabase
   useEffect(() => {
     const fetchPlanDetails = async () => {
       try {
@@ -64,7 +63,7 @@ const Signup = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validations
+    // Validações
     if (!name.trim()) {
       toast({
         variant: "destructive",
@@ -130,13 +129,29 @@ const Signup = () => {
       });
       
       if (success) {
-        // We'll redirect to login page since the user needs to login after signup
-        navigate("/login", { 
-          state: { 
-            message: "Conta criada com sucesso! Por favor, faça login para continuar." 
-          } 
+        // Após o cadastro bem-sucedido, fazemos login automaticamente e redirecionamos para /personalize
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
         });
+        
+        if (error) {
+          console.error("Erro ao fazer login automático:", error);
+          toast({
+            title: "Conta criada com sucesso!",
+            description: "Por favor, faça login para continuar.",
+          });
+          navigate("/login");
+        } else {
+          toast({
+            title: "Conta criada com sucesso!",
+            description: "Agora você será direcionado para personalizar seu namorado virtual.",
+          });
+          navigate("/personalize");
+        }
       }
+    } catch (error) {
+      console.error("Erro durante signup:", error);
     } finally {
       setIsSubmitting(false);
     }
