@@ -16,12 +16,16 @@ import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
-// Protected route component for admin access - modified to not redirect immediately
+// Protected route component for admin access
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, isAdmin } = useAuth();
   
   useEffect(() => {
-    console.log("AdminRoute check:", { currentUser, isAdmin: isAdmin() });
+    console.log("AdminRoute check:", { 
+      user: currentUser?.email, 
+      role: currentUser?.role,
+      isAdmin: isAdmin() 
+    });
   }, [currentUser]);
   
   // Always render Admin page - authentication will be handled inside the component

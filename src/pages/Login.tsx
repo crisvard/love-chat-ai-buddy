@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -62,144 +61,115 @@ const Login = () => {
     try {
       console.log(`Attempting login for: ${email}`);
       
-      // Special admin login
-      if (email === 'armempires@gmail.com' && password === 'mudar123') {
-        console.log("Using special admin credentials");
-        try {
-          // Try first with direct credentials
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-          });
-          
-          // If direct login fails, use the admin credentials
-          if (error) {
-            console.log("Direct login failed, trying with admin@example.com");
-            const success = await login('admin@example.com', 'adminpassword');
-            if (success) {
-              console.log("Admin login successful via fallback");
+      // Lista de administradores conhecidos
+      const knownAdminEmails = ['armempires@gmail.com', 'admin@example.com'];
+      const isKnownAdmin = (email === 'armempires@gmail.com' && password === 'mudar123') || 
+                           (email === 'admin' && password === 'admin');
+      
+      if (isKnownAdmin) {
+        console.log("Detectadas credenciais administrativas");
+        
+        // Logout prévio para evitar conflitos
+        await supabase.auth.signOut();
+        
+        // Determinar qual email usar para login real
+        const loginEmail = email === 'admin' ? 'admin@example.com' : email;
+        const loginPassword = email === 'admin' ? 'adminpassword' : password;
+        
+        // Efetuar login
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginEmail,
+          password: loginPassword
+        });
+        
+        if (error) {
+          console.error("Erro no login administrativo:", error);
+          throw new Error("Falha na autenticação de administrador. Verifique suas credenciais.");
+        }
+        
+        console.log("Login administrativo bem-sucedido:", data.user?.email);
+        
+        // Configurar plano administrativo se necessário
+        if (data.user) {
+          try {
+            const { data: subsData, error: subsError } = await supabase
+              .from('user_subscriptions')
+              .select('*')
+              .eq('user_id', data.user.id)
+              .eq('plan_id', 'admin')
+              .maybeSingle();
               
-              // Guarantee admin subscription
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                try {
-                  const { error } = await supabase
-                    .from('user_subscriptions')
-                    .upsert({
-                      user_id: user.id,
-                      plan_id: 'admin',
-                      start_date: new Date().toISOString(),
-                      end_date: null,
-                      is_active: true
-                    }, { onConflict: 'user_id' });
-                    
-                  if (error) {
-                    console.error("Error setting admin plan:", error);
-                  }
-                } catch (err) {
-                  console.error("Error setting admin plan:", err);
-                }
-              }
-              
-              navigate("/admin");
-              return;
-            } else {
-              throw new Error("Falha na autenticação de administrador");
-            }
-          } else {
-            // Direct login succeeded, now ensure admin role
-            console.log("Direct admin login successful");
-            if (data.user) {
-              try {
-                const { error } = await supabase
-                  .from('user_subscriptions')
-                  .upsert({
-                    user_id: data.user.id,
-                    plan_id: 'admin',
-                    start_date: new Date().toISOString(),
-                    end_date: null,
-                    is_active: true
-                  }, { onConflict: 'user_id' });
-                  
-                if (error) {
-                  console.error("Error setting admin plan:", error);
-                }
-              } catch (err) {
-                console.error("Error setting admin plan:", err);
-              }
+            if (subsError) {
+              console.error("Erro ao verificar plano de administrador:", subsError);
             }
             
-            navigate("/admin");
-            return;
+            if (!subsData) {
+              console.log("Configurando plano de administrador");
+              const { error: insertError } = await supabase
+                .from('user_subscriptions')
+                .upsert({
+                  user_id: data.user.id,
+                  plan_id: 'admin',
+                  start_date: new Date().toISOString(),
+                  end_date: null,
+                  is_active: true
+                });
+                
+              if (insertError) {
+                console.error("Erro ao configurar plano de administrador:", insertError);
+              }
+            }
+          } catch (err) {
+            console.error("Erro ao verificar/configurar plano de administrador:", err);
           }
-        } catch (error) {
-          console.error("Admin login error:", error);
-          throw error;
         }
+        
+        toast({
+          title: "Login de Administrador",
+          description: "Login administrativo realizado com sucesso!",
+        });
+        
+        // Redirecionar para a página de administração
+        navigate("/admin");
+        return;
       }
       
-      // Special admin login for backward compatibility
-      if (email === 'admin' && password === 'admin') {
-        console.log("Trying special admin login");
-        const success = await login('admin@example.com', 'adminpassword');
-        if (success) {
-          console.log("Admin login successful, redirecting to /admin");
-          navigate("/admin");
-          return;
-        } else {
-          console.log("Admin login failed despite correct credentials");
-          throw new Error("Falha na autenticação de administrador");
-        }
-      }
-      
-      // Special user login for backward compatibility
-      if (email === 'user' && password === 'user') {
-        console.log("Trying special user login");
-        const success = await login('user@example.com', 'userpassword');
-        if (success) {
-          console.log("User login successful, redirecting to /chat");
-          navigate("/chat");
-          return;
-        } else {
-          console.log("User login failed despite correct credentials");
-          throw new Error("Falha na autenticação de usuário");
-        }
-      }
-      
-      // Regular login
-      console.log(`Attempting regular login for: ${email}`);
+      // Login normal para outros usuários
+      console.log("Tentando login regular para:", email);
       const success = await login(email, password);
       
       if (success) {
-        console.log("Login successful");
+        console.log("Login regular bem-sucedido");
         
-        // Check if user is admin to determine redirect
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data, error } = await supabase
-            .from('user_subscriptions')
-            .select('plan_id')
-            .eq('user_id', session.user.id)
-            .eq('plan_id', 'admin')
-            .single();
+        try {
+          // Verificar se o usuário é admin para determinar redirecionamento
+          const { data: { session } } = await supabase.auth.getSession();
           
-          if (!error && data) {
-            console.log("Admin user detected, redirecting to /admin");
-            navigate("/admin");
-          } else {
-            console.log("Regular user, redirecting to /chat");
-            navigate("/chat");
+          if (session?.user) {
+            const { data, error } = await supabase
+              .from('user_subscriptions')
+              .select('plan_id')
+              .eq('user_id', session.user.id)
+              .eq('plan_id', 'admin')
+              .maybeSingle();
+            
+            if (!error && data) {
+              console.log("Detectado usuário admin, redirecionando para /admin");
+              navigate("/admin");
+              return;
+            }
           }
-        } else {
-          // Default to chat if can't determine
-          navigate("/chat");
+        } catch (err) {
+          console.error("Erro ao verificar status de administrador:", err);
         }
+        
+        // Redirecionar usuário regular para o chat
+        navigate("/chat");
       } else {
-        console.log("Login failed with unknown reason");
         throw new Error("Falha na autenticação. Verifique suas credenciais.");
       }
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Erro no login:", error);
       toast({
         title: "Erro no login",
         description: error.message || "Falha na autenticação. Verifique suas credenciais.",

@@ -36,14 +36,16 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
+  // Lista de emails de administradores conhecidos
+  const knownAdminEmails = ["armempires@gmail.com", "admin@example.com"];
+  
   // Function to check if user is admin
   const checkIsAdmin = async (userId: string): Promise<boolean> => {
     try {
       // First check if user email is a known admin email
       const { data: userInfo } = await supabase.auth.getUser();
-      const adminEmails = ["armempires@gmail.com", "admin@example.com"];
       
-      if (userInfo?.user?.email && adminEmails.includes(userInfo.user.email)) {
+      if (userInfo?.user?.email && knownAdminEmails.includes(userInfo.user.email)) {
         console.log("Admin detectado via email:", userInfo.user.email);
         return true;
       }
@@ -77,6 +79,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           try {
             console.log("User authenticated:", session.user.email);
+            
+            // Verificar imediatamente se é um email administrativo conhecido
+            const isAdminEmail = knownAdminEmails.includes(session.user.email || '');
+            if (isAdminEmail) {
+              console.log("Admin detectado por email conhecido:", session.user.email);
+              
+              // Configurar usuário como admin imediatamente
+              setCurrentUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.email?.split('@')[0] || 'Admin',
+                role: 'admin'
+              });
+              
+              // Verificar/configurar plano administrativo em segundo plano
+              setTimeout(async () => {
+                try {
+                  const { data: subsData, error: subsError } = await supabase
+                    .from('user_subscriptions')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .eq('plan_id', 'admin')
+                    .maybeSingle();
+                    
+                  if (!subsData && !subsError) {
+                    console.log("Configurando plano administrativo para usuário:", session.user.email);
+                    await supabase
+                      .from('user_subscriptions')
+                      .upsert({
+                        user_id: session.user.id,
+                        plan_id: 'admin',
+                        start_date: new Date().toISOString(),
+                        end_date: null,
+                        is_active: true
+                      });
+                  }
+                } catch (err) {
+                  console.error("Erro ao configurar plano administrativo:", err);
+                }
+              }, 0);
+              
+              return;
+            }
             
             // Define a function to fetch user data
             const fetchUserData = async () => {
@@ -140,6 +185,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         console.log("Existing session found for:", session.user.email);
         
+        // Verificar imediatamente se é um email administrativo conhecido
+        const isAdminEmail = knownAdminEmails.includes(session.user.email || '');
+        if (isAdminEmail) {
+          console.log("Admin existente detectado por email:", session.user.email);
+          
+          // Configurar usuário como admin imediatamente
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.email?.split('@')[0] || 'Admin',
+            role: 'admin'
+          });
+          
+          return;
+        }
+        
         try {
           // Fetch profile
           const { data: profile, error: profileError } = await supabase
@@ -198,9 +259,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log("Login bem-sucedido:", data);
       
-      // Handle special case for admin
-      const adminEmails = ["armempires@gmail.com", "admin@example.com"];
-      if (adminEmails.includes(email)) {
+      // Verificar se é um email de administrador conhecido
+      if (knownAdminEmails.includes(email)) {
         console.log("Configurando plano admin para usuário admin");
         try {
           const { error } = await supabase
