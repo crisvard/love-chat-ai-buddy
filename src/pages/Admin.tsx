@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,114 +9,56 @@ import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { Gift, UserIcon, DollarSign, Bell, User } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for plans
-const initialPlans = [
-  {
-    id: "free",
-    name: "Teste Grátis",
-    price: "0",
-    duration: "3 dias",
-    description: "Experimente nosso serviço sem compromisso",
-    features: ["Mensagens de texto"],
-  },
-  {
-    id: "basic",
-    name: "Básico",
-    price: "29.90",
-    duration: "mensal",
-    description: "Para quem quer manter o contato",
-    features: ["Mensagens de texto (sem limite)"],
-  },
-  {
-    id: "intermediate",
-    name: "Intermediário",
-    price: "49.90",
-    duration: "mensal",
-    description: "Para uma experiência mais pessoal",
-    features: ["Mensagens de texto (sem limite)", "Áudio"],
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    price: "79.90",
-    duration: "mensal",
-    description: "Para a experiência completa",
-    features: [
-      "Mensagens de texto (sem limite)",
-      "Áudio",
-      "4 chamadas de voz por mês",
-      "4 chamadas de vídeo por mês",
-    ],
-  },
-];
+// Define interfaces for our data types
+interface Plan {
+  id: string;
+  name: string;
+  price: string;
+  duration: string;
+  description: string;
+  features: string[];
+}
 
-// Mock data for special gifts/emojis (premium content)
-const initialGifts = [
-  { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
-  { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
-  { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
-  { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
-];
+interface Gift {
+  id: string;
+  name: string;
+  emoji: string;
+  price: string;
+}
 
-// Mock data for users
-const initialUsers = [
-  { id: "1", name: "João Silva", email: "joao@example.com", country: "Brasil", plan: "premium" },
-  { id: "2", name: "Maria Souza", email: "maria@example.com", country: "Brasil", plan: "basic" },
-  { id: "3", name: "Carlos Oliveira", email: "carlos@example.com", country: "Portugal", plan: "intermediate" },
-];
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  country: string;
+  plan: string;
+}
 
-// Initial agent profiles
-const initialAgentProfiles = [
-  {
-    id: "1",
-    name: "Ana",
-    gender: "female",
-    image: "https://randomuser.me/api/portraits/women/44.jpg",
-  },
-  {
-    id: "2",
-    name: "Carlos",
-    gender: "male",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
-  },
-  {
-    id: "3",
-    name: "Júlia",
-    gender: "female",
-    image: "https://randomuser.me/api/portraits/women/68.jpg",
-  },
-  {
-    id: "4",
-    name: "Rafael",
-    gender: "male",
-    image: "https://randomuser.me/api/portraits/men/91.jpg",
-  },
-  {
-    id: "5",
-    name: "Camila",
-    gender: "female",
-    image: "https://randomuser.me/api/portraits/women/26.jpg",
-  },
-  {
-    id: "6",
-    name: "Bruno",
-    gender: "male",
-    image: "https://randomuser.me/api/portraits/men/64.jpg",
-  },
-];
+interface AgentProfile {
+  id: string;
+  name: string;
+  gender: "male" | "female";
+  image: string;
+}
 
 const Admin = () => {
   const navigate = useNavigate();
   const { currentUser, isAdmin, logout } = useAuth();
-  const [plans, setPlans] = useState(initialPlans);
-  const [gifts, setGifts] = useState(initialGifts);
-  const [users, setUsers] = useState(initialUsers);
-  const [agents, setAgents] = useState(initialAgentProfiles);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [gifts, setGifts] = useState<Gift[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [agents, setAgents] = useState<AgentProfile[]>([]);
   const [newGift, setNewGift] = useState({ name: "", emoji: "", price: "" });
   const [notification, setNotification] = useState("");
-  const [newAgent, setNewAgent] = useState({ name: "", gender: "female", image: "" });
+  const [newAgent, setNewAgent] = useState<{ name: string; gender: "male" | "female"; image: string }>({ 
+    name: "", 
+    gender: "female", 
+    image: "" 
+  });
   const [editingAgent, setEditingAgent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Check if user is admin, otherwise redirect to login
   useEffect(() => {
@@ -126,20 +69,128 @@ const Admin = () => {
         description: "Você precisa ser um administrador para acessar esta página.",
       });
       navigate("/login");
+    } else {
+      fetchData();
     }
   }, [currentUser, isAdmin, navigate]);
 
-  const handleUpdatePlan = (id: string, field: string, value: string) => {
-    setPlans((prevPlans) =>
-      prevPlans.map((plan) => (plan.id === id ? { ...plan, [field]: value } : plan))
-    );
-    toast({
-      title: "Plano atualizado",
-      description: `O plano ${id} foi atualizado com sucesso.`,
-    });
+  // Fetch all data from Supabase
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch plans
+      const { data: plansData, error: plansError } = await supabase
+        .from('plans')
+        .select('*');
+        
+      if (plansError) throw plansError;
+      
+      setPlans(plansData.map(plan => ({
+        id: plan.id,
+        name: plan.name,
+        price: plan.price.toString(),
+        duration: plan.duration,
+        description: plan.description || "",
+        features: Array.isArray(plan.features) ? plan.features : []
+      })));
+      
+      // Fetch gifts
+      const { data: giftsData, error: giftsError } = await supabase
+        .from('gifts')
+        .select('*');
+        
+      if (giftsError) throw giftsError;
+      
+      setGifts(giftsData.map(gift => ({
+        id: gift.id,
+        name: gift.name,
+        emoji: gift.emoji,
+        price: gift.price.toString()
+      })));
+      
+      // Fetch agents
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('*');
+        
+      if (agentsError) throw agentsError;
+      
+      setAgents(agentsData);
+      
+      // Fetch users (combine profiles and subscriptions)
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+        
+      if (profilesError) throw profilesError;
+      
+      const { data: subscriptionsData, error: subscriptionsError } = await supabase
+        .from('user_subscriptions')
+        .select('*');
+        
+      if (subscriptionsError) throw subscriptionsError;
+      
+      const usersList = profilesData.map(profile => {
+        const subscription = subscriptionsData.find(sub => sub.user_id === profile.id);
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          country: profile.country,
+          plan: subscription ? subscription.plan_id : 'none'
+        };
+      });
+      
+      setUsers(usersList);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao carregar os dados.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAddGift = () => {
+  const handleUpdatePlan = async (id: string, field: string, value: string) => {
+    try {
+      // Prepare data based on field type
+      const updateData: any = {};
+      if (field === 'price') {
+        updateData[field] = parseFloat(value);
+      } else {
+        updateData[field] = value;
+      }
+      
+      const { error } = await supabase
+        .from('plans')
+        .update(updateData)
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setPlans((prevPlans) =>
+        prevPlans.map((plan) => (plan.id === id ? { ...plan, [field]: value } : plan))
+      );
+      
+      toast({
+        title: "Plano atualizado",
+        description: `O plano ${id} foi atualizado com sucesso.`,
+      });
+    } catch (error) {
+      console.error("Error updating plan:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao atualizar o plano.",
+      });
+    }
+  };
+
+  const handleAddGift = async () => {
     if (!newGift.name || !newGift.emoji || !newGift.price) {
       toast({
         variant: "destructive",
@@ -149,30 +200,100 @@ const Admin = () => {
       return;
     }
 
-    const id = (gifts.length + 1).toString();
-    setGifts([...gifts, { id, ...newGift }]);
-    setNewGift({ name: "", emoji: "", price: "" });
-    toast({
-      title: "Presente adicionado",
-      description: `${newGift.name} foi adicionado com sucesso.`,
-    });
+    try {
+      const { data, error } = await supabase
+        .from('gifts')
+        .insert({
+          name: newGift.name,
+          emoji: newGift.emoji,
+          price: parseFloat(newGift.price)
+        })
+        .select();
+        
+      if (error) throw error;
+      
+      // Add to local state
+      setGifts([...gifts, {
+        id: data[0].id,
+        name: newGift.name,
+        emoji: newGift.emoji,
+        price: newGift.price
+      }]);
+      
+      setNewGift({ name: "", emoji: "", price: "" });
+      
+      toast({
+        title: "Presente adicionado",
+        description: `${newGift.name} foi adicionado com sucesso.`,
+      });
+    } catch (error) {
+      console.error("Error adding gift:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao adicionar o presente.",
+      });
+    }
   };
 
-  const handleDeleteGift = (id: string) => {
-    setGifts(gifts.filter((gift) => gift.id !== id));
-    toast({
-      title: "Presente removido",
-      description: "O presente foi removido com sucesso.",
-    });
+  const handleDeleteGift = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('gifts')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setGifts(gifts.filter((gift) => gift.id !== id));
+      
+      toast({
+        title: "Presente removido",
+        description: "O presente foi removido com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error deleting gift:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao remover o presente.",
+      });
+    }
   };
 
-  const handleEditGift = (id: string, field: string, value: string) => {
-    setGifts(
-      gifts.map((gift) => (gift.id === id ? { ...gift, [field]: value } : gift))
-    );
+  const handleEditGift = async (id: string, field: string, value: string) => {
+    try {
+      // Prepare data based on field type
+      const updateData: any = {};
+      if (field === 'price') {
+        updateData[field] = parseFloat(value);
+      } else {
+        updateData[field] = value;
+      }
+      
+      const { error } = await supabase
+        .from('gifts')
+        .update(updateData)
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setGifts(
+        gifts.map((gift) => (gift.id === id ? { ...gift, [field]: value } : gift))
+      );
+    } catch (error) {
+      console.error("Error updating gift:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao atualizar o presente.",
+      });
+    }
   };
 
-  const handleAddAgent = () => {
+  const handleAddAgent = async () => {
     if (!newAgent.name || !newAgent.image) {
       toast({
         variant: "destructive",
@@ -182,27 +303,86 @@ const Admin = () => {
       return;
     }
 
-    const id = (agents.length + 1).toString();
-    setAgents([...agents, { id, ...newAgent }]);
-    setNewAgent({ name: "", gender: "female", image: "" });
-    toast({
-      title: "Perfil adicionado",
-      description: `${newAgent.name} foi adicionado com sucesso.`,
-    });
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .insert({
+          name: newAgent.name,
+          gender: newAgent.gender,
+          image: newAgent.image
+        })
+        .select();
+        
+      if (error) throw error;
+      
+      // Add to local state
+      setAgents([...agents, data[0]]);
+      
+      setNewAgent({ name: "", gender: "female", image: "" });
+      
+      toast({
+        title: "Perfil adicionado",
+        description: `${newAgent.name} foi adicionado com sucesso.`,
+      });
+    } catch (error) {
+      console.error("Error adding agent:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao adicionar o perfil.",
+      });
+    }
   };
 
-  const handleDeleteAgent = (id: string) => {
-    setAgents(agents.filter((agent) => agent.id !== id));
-    toast({
-      title: "Perfil removido",
-      description: "O perfil foi removido com sucesso.",
-    });
+  const handleDeleteAgent = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('agents')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setAgents(agents.filter((agent) => agent.id !== id));
+      
+      toast({
+        title: "Perfil removido",
+        description: "O perfil foi removido com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error deleting agent:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao remover o perfil.",
+      });
+    }
   };
 
-  const handleEditAgent = (id: string, field: string, value: string) => {
-    setAgents(
-      agents.map((agent) => (agent.id === id ? { ...agent, [field]: value } : agent))
-    );
+  const handleEditAgent = async (id: string, field: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('agents')
+        .update({
+          [field]: value
+        })
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setAgents(
+        agents.map((agent) => (agent.id === id ? { ...agent, [field]: value } : agent))
+      );
+    } catch (error) {
+      console.error("Error updating agent:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao atualizar o perfil.",
+      });
+    }
   };
 
   const handleSendNotification = () => {
@@ -227,32 +407,17 @@ const Admin = () => {
     navigate("/login");
   };
 
-  // Save changes to localStorage when data changes
-  useEffect(() => {
-    localStorage.setItem("plans", JSON.stringify(plans));
-    localStorage.setItem("gifts", JSON.stringify(gifts));
-    localStorage.setItem("agentProfiles", JSON.stringify(agents));
-  }, [plans, gifts, agents]);
-
-  // Load data from localStorage on first render
-  useEffect(() => {
-    const savedPlans = localStorage.getItem("plans");
-    const savedGifts = localStorage.getItem("gifts");
-    const savedAgents = localStorage.getItem("agentProfiles");
-
-    if (savedPlans) {
-      setPlans(JSON.parse(savedPlans));
-    }
-    if (savedGifts) {
-      setGifts(JSON.parse(savedGifts));
-    }
-    if (savedAgents) {
-      setAgents(JSON.parse(savedAgents));
-    }
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p>Carregando dados administrativos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Header */}
       <header className="bg-purple-600 text-white p-4 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-xl font-bold">Painel Administrativo</h1>
@@ -262,6 +427,7 @@ const Admin = () => {
         </div>
       </header>
 
+      {/* Main content */}
       <main className="container mx-auto p-4 py-8">
         <Tabs defaultValue="gifts" className="w-full">
           <TabsList className="grid grid-cols-5 mb-8">
@@ -363,7 +529,7 @@ const Admin = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-6">
-                  {plans.map((plan) => (
+                  {plans.filter(plan => plan.id !== 'admin').map((plan) => (
                     <div key={plan.id} className="border p-4 rounded-md">
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>

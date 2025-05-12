@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 // Tipos para os agentes
 interface AgentProfile {
@@ -24,57 +26,68 @@ interface AgentProfile {
 
 const Personalize = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
   const [nickname, setNickname] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [agentProfiles, setAgentProfiles] = useState<AgentProfile[]>([]);
   
-  // Lista de perfis de agentes
-  const [agentProfiles, setAgentProfiles] = useState<AgentProfile[]>([
-    {
-      id: "1",
-      name: "Ana",
-      gender: "female",
-      image: "https://randomuser.me/api/portraits/women/44.jpg",
-    },
-    {
-      id: "2",
-      name: "Carlos",
-      gender: "male",
-      image: "https://randomuser.me/api/portraits/men/32.jpg",
-    },
-    {
-      id: "3",
-      name: "Júlia",
-      gender: "female",
-      image: "https://randomuser.me/api/portraits/women/68.jpg",
-    },
-    {
-      id: "4",
-      name: "Rafael",
-      gender: "male",
-      image: "https://randomuser.me/api/portraits/men/91.jpg",
-    },
-    {
-      id: "5",
-      name: "Camila",
-      gender: "female",
-      image: "https://randomuser.me/api/portraits/women/26.jpg",
-    },
-    {
-      id: "6",
-      name: "Bruno",
-      gender: "male",
-      image: "https://randomuser.me/api/portraits/men/64.jpg",
-    },
-  ]);
-  
-  // Load agent profiles from localStorage
   useEffect(() => {
-    const savedAgents = localStorage.getItem("agentProfiles");
-    if (savedAgents) {
-      setAgentProfiles(JSON.parse(savedAgents));
+    // Redirect if not logged in
+    if (!currentUser) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você precisa estar logado para personalizar seu namorado virtual.",
+      });
+      navigate("/login");
+      return;
     }
-  }, []);
+    
+    // Load existing selection if any
+    const fetchUserAgentSelection = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_agent_selections')
+          .select('*, agents(*)')
+          .eq('user_id', currentUser.id)
+          .single();
+          
+        if (!error && data) {
+          setSelectedAgent(data.agents as AgentProfile);
+          setNickname(data.nickname);
+        }
+      } catch (error) {
+        console.error("Error fetching user agent selection:", error);
+      }
+    };
+    
+    // Fetch all available agents from Supabase
+    const fetchAgents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('agents')
+          .select('*');
+          
+        if (error) throw error;
+        
+        setAgentProfiles(data);
+      } catch (error) {
+        console.error("Error fetching agents:", error);
+        
+        // Fallback to local storage
+        const savedAgents = localStorage.getItem("agentProfiles");
+        if (savedAgents) {
+          setAgentProfiles(JSON.parse(savedAgents));
+        }
+      }
+    };
+    
+    fetchAgents();
+    if (currentUser) {
+      fetchUserAgentSelection();
+    }
+  }, [currentUser, navigate]);
   
   const handleSelectAgent = (agent: AgentProfile) => {
     setSelectedAgent(agent);
@@ -99,22 +112,35 @@ const Personalize = () => {
       return;
     }
     
+    if (!currentUser) {
+      toast({
+        variant: "destructive",
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para continuar.",
+      });
+      navigate("/login");
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      // Save the selected agent and nickname to localStorage
+      // Save to Supabase
+      const { error } = await supabase
+        .from('user_agent_selections')
+        .upsert({
+          user_id: currentUser.id,
+          agent_id: selectedAgent.id,
+          nickname
+        }, { onConflict: 'user_id' });
+        
+      if (error) throw error;
+      
+      // Also save to localStorage for backwards compatibility
       localStorage.setItem("selectedAgent", JSON.stringify({
         ...selectedAgent,
         nickname
       }));
-      
-      console.log("Personalização:", { 
-        agent: selectedAgent, 
-        nickname 
-      });
-      
-      // Simulando um delay de processamento
-      await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast({
         title: "Personalização concluída!",

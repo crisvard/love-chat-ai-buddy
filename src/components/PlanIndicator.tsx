@@ -3,11 +3,12 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Star, Lock, ArrowUp } from "lucide-react";
+import { Star, ArrowUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { getCurrentSubscription, setCurrentSubscription } from "@/services/subscription";
 
 interface Plan {
   id: string;
@@ -26,61 +27,105 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
   const { currentUser } = useAuth();
   const [availableUpgrades, setAvailableUpgrades] = useState<Plan[]>([]);
   const [remainingTime, setRemainingTime] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<{planId: string, endDate: Date | null}>({
+    planId: currentPlanId,
+    endDate: trialEndsAt
+  });
 
-  // Load plans from localStorage (same as in Index.tsx)
+  // Load plans from Supabase
   useEffect(() => {
-    const defaultPlans = [
-      {
-        id: "free",
-        name: "Teste Grátis",
-        price: "0",
-        features: ["Mensagens de texto"]
-      },
-      {
-        id: "basic",
-        name: "Básico",
-        price: "29.90",
-        features: ["Mensagens de texto (sem limite)"]
-      },
-      {
-        id: "intermediate",
-        name: "Intermediário",
-        price: "49.90",
-        features: ["Mensagens de texto (sem limite)", "Áudio"]
-      },
-      {
-        id: "premium",
-        name: "Premium",
-        price: "79.90",
-        features: [
-          "Mensagens de texto (sem limite)", 
-          "Áudio", 
-          "4 chamadas de voz por mês",
-          "4 chamadas de vídeo por mês"
-        ]
-      }
-    ];
+    const fetchPlans = async () => {
+      try {
+        // Get plans from Supabase
+        const { data, error } = await supabase
+          .from('plans')
+          .select('*')
+          .order('price', { ascending: true });
+          
+        if (error) throw error;
+        
+        // Convert to expected format
+        const plans = data.map(plan => ({
+          id: plan.id,
+          name: plan.name,
+          price: plan.price.toString(),
+          features: Array.isArray(plan.features) ? plan.features : []
+        }));
+        
+        // Filter to only show plans that are more expensive than current plan
+        const planOrder = ["free", "basic", "intermediate", "premium", "admin"];
+        const currentPlanIndex = planOrder.indexOf(currentPlanId);
+        
+        const upgrades = plans.filter((plan: Plan) => 
+          planOrder.indexOf(plan.id) > currentPlanIndex && plan.id !== 'admin'
+        );
+        
+        setAvailableUpgrades(upgrades);
+      } catch (error) {
+        console.error("Error fetching plans:", error);
+        
+        // Fallback to localStorage
+        const defaultPlans = [
+          {
+            id: "free",
+            name: "Teste Grátis",
+            price: "0",
+            features: ["Mensagens de texto"]
+          },
+          {
+            id: "basic",
+            name: "Básico",
+            price: "29.90",
+            features: ["Mensagens de texto (sem limite)"]
+          },
+          {
+            id: "intermediate",
+            name: "Intermediário",
+            price: "49.90",
+            features: ["Mensagens de texto (sem limite)", "Áudio"]
+          },
+          {
+            id: "premium",
+            name: "Premium",
+            price: "79.90",
+            features: [
+              "Mensagens de texto (sem limite)", 
+              "Áudio", 
+              "4 chamadas de voz por mês",
+              "4 chamadas de vídeo por mês"
+            ]
+          }
+        ];
 
-    const savedPlans = localStorage.getItem("plans");
-    const plans = savedPlans ? JSON.parse(savedPlans) : defaultPlans;
+        // Filter to only show plans that are more expensive than current plan
+        const planOrder = ["free", "basic", "intermediate", "premium"];
+        const currentPlanIndex = planOrder.indexOf(currentPlanId);
+        
+        const upgrades = defaultPlans.filter((plan: Plan) => 
+          planOrder.indexOf(plan.id) > currentPlanIndex
+        );
+        
+        setAvailableUpgrades(upgrades);
+      }
+    };
     
-    // Filter to only show plans that are more expensive than current plan
-    const planOrder = ["free", "basic", "intermediate", "premium"];
-    const currentPlanIndex = planOrder.indexOf(currentPlanId);
+    fetchPlans();
     
-    const upgrades = plans.filter((plan: Plan) => 
-      planOrder.indexOf(plan.id) > currentPlanIndex
-    );
+    // Also fetch the current subscription to make sure we have the latest
+    const fetchSubscription = async () => {
+      const sub = await getCurrentSubscription();
+      setSubscription(sub);
+    };
     
-    setAvailableUpgrades(upgrades);
+    fetchSubscription();
   }, [currentPlanId]);
 
   // Calculate remaining time for trial plan
   useEffect(() => {
-    if (currentPlanId === "free" && trialEndsAt) {
+    if (subscription.planId === "free" && subscription.endDate) {
       const updateRemainingTime = () => {
         const now = new Date();
-        const endDate = new Date(trialEndsAt);
+        const endDate = new Date(subscription.endDate as Date);
         
         if (now >= endDate) {
           setRemainingTime("Expirado");
@@ -106,7 +151,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
       
       return () => clearInterval(timer);
     }
-  }, [currentPlanId, trialEndsAt]);
+  }, [subscription]);
 
   const handleUpgrade = async (planId: string) => {
     if (!currentUser) {
@@ -120,14 +165,13 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
 
     try {
       // Update user's subscription in Supabase
-      // In a real app, this would connect to a payment processor
       const endDate = planId === "free" ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) : null; // 3 days for free trial
       
       // Fix: Convert Date objects to ISO strings for Supabase compatibility
       const { error } = await supabase
         .from('user_subscriptions')
         .upsert([{
-          user_id: currentUser.email, // Using email as user_id for demo
+          user_id: currentUser.id, // Using actual user ID now
           plan_id: planId,
           start_date: new Date().toISOString(),
           end_date: endDate ? endDate.toISOString() : null,
@@ -159,9 +203,10 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
       "free": "Teste Grátis",
       "basic": "Básico",
       "intermediate": "Intermediário", 
-      "premium": "Premium"
+      "premium": "Premium",
+      "admin": "Administrador"
     };
-    return planMap[currentPlanId] || "Desconhecido";
+    return planMap[subscription.planId] || "Desconhecido";
   };
 
   return (

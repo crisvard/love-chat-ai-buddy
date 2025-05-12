@@ -5,77 +5,111 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
-const defaultPlans = [
-  {
-    id: "free",
-    name: "Teste Grátis",
-    price: "0",
-    duration: "3 dias",
-    description: "Experimente nosso serviço sem compromisso",
-    features: ["Mensagens de texto"],
-    primaryAction: "Experimente Grátis",
-    secondaryAction: null,
-  },
-  {
-    id: "basic",
-    name: "Básico",
-    price: "29.90",
-    duration: "mensal",
-    description: "Para quem quer manter o contato",
-    features: ["Mensagens de texto (sem limite)"],
-    primaryAction: "Assinar",
-    secondaryAction: null,
-  },
-  {
-    id: "intermediate",
-    name: "Intermediário",
-    price: "49.90",
-    duration: "mensal",
-    description: "Para uma experiência mais pessoal",
-    features: ["Mensagens de texto (sem limite)", "Áudio"],
-    primaryAction: "Assinar",
-    secondaryAction: null,
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    price: "79.90",
-    duration: "mensal",
-    description: "Para a experiência completa",
-    features: [
-      "Mensagens de texto (sem limite)", 
-      "Áudio", 
-      "4 chamadas de voz por mês",
-      "4 chamadas de vídeo por mês"
-    ],
-    primaryAction: "Assinar",
-    secondaryAction: null,
-  },
-];
+interface Plan {
+  id: string;
+  name: string;
+  price: string;
+  duration: string;
+  description: string;
+  features: string[];
+  primaryAction: string;
+  secondaryAction: string | null;
+}
 
 const Index = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [plans, setPlans] = useState(defaultPlans);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Load plans from localStorage if they've been modified by admin
-    const savedPlans = localStorage.getItem("plans");
-    if (savedPlans) {
+    // Fetch plans from Supabase
+    const fetchPlans = async () => {
       try {
-        const parsedPlans = JSON.parse(savedPlans);
-        // Ensure we have all the required properties
-        const updatedPlans = parsedPlans.map((plan: any) => ({
-          ...plan,
-          primaryAction: plan.id === "free" ? "Experimente Grátis" : "Assinar",
-          secondaryAction: null
-        }));
-        setPlans(updatedPlans);
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('plans')
+          .select('*')
+          .order('price', { ascending: true });
+          
+        if (error) throw error;
+        
+        // Map to the expected format
+        const formattedPlans = data
+          .filter(plan => plan.id !== 'admin')
+          .map(plan => ({
+            id: plan.id,
+            name: plan.name,
+            price: plan.price.toString(),
+            duration: plan.duration,
+            description: plan.description || "",
+            features: Array.isArray(plan.features) ? plan.features : [],
+            primaryAction: plan.id === "free" ? "Experimente Grátis" : "Assinar",
+            secondaryAction: null
+          }));
+        
+        setPlans(formattedPlans);
       } catch (error) {
-        console.error("Error parsing plans from localStorage", error);
+        console.error("Error fetching plans:", error);
+        
+        // Fallback to default plans if we can't fetch from Supabase
+        const defaultPlans = [
+          {
+            id: "free",
+            name: "Teste Grátis",
+            price: "0",
+            duration: "3 dias",
+            description: "Experimente nosso serviço sem compromisso",
+            features: ["Mensagens de texto"],
+            primaryAction: "Experimente Grátis",
+            secondaryAction: null,
+          },
+          {
+            id: "basic",
+            name: "Básico",
+            price: "29.90",
+            duration: "mensal",
+            description: "Para quem quer manter o contato",
+            features: ["Mensagens de texto (sem limite)"],
+            primaryAction: "Assinar",
+            secondaryAction: null,
+          },
+          {
+            id: "intermediate",
+            name: "Intermediário",
+            price: "49.90",
+            duration: "mensal",
+            description: "Para uma experiência mais pessoal",
+            features: ["Mensagens de texto (sem limite)", "Áudio"],
+            primaryAction: "Assinar",
+            secondaryAction: null,
+          },
+          {
+            id: "premium",
+            name: "Premium",
+            price: "79.90",
+            duration: "mensal",
+            description: "Para a experiência completa",
+            features: [
+              "Mensagens de texto (sem limite)", 
+              "Áudio", 
+              "4 chamadas de voz por mês",
+              "4 chamadas de vídeo por mês"
+            ],
+            primaryAction: "Assinar",
+            secondaryAction: null,
+          },
+        ];
+        
+        setPlans(defaultPlans);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+    
+    fetchPlans();
   }, []);
   
   const handleAction = (planId: string, actionType: "primary" | "secondary") => {
@@ -118,46 +152,50 @@ const Index = () => {
           Escolha o plano ideal para você
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {plans.map((plan) => (
-            <Card 
-              key={plan.id} 
-              className={`flex flex-col h-full border-2 ${
-                plan.id === "premium" ? "border-purple-500 shadow-lg shadow-purple-100" : "border-gray-200"
-              }`}
-            >
-              <CardHeader>
-                <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
-                <div className="mt-2">
-                  <span className="text-2xl font-bold">R${plan.price}</span>
-                  {plan.duration && (
-                    <span className="text-sm text-gray-500">/{plan.duration}</span>
-                  )}
-                </div>
-                <CardDescription>{plan.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <ul className="space-y-2">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start">
-                      <CheckCircle className="h-5 w-5 mr-2 text-purple-600 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter className="flex flex-col space-y-2">
-                <Button 
-                  onClick={() => handleAction(plan.id, "primary")}
-                  className="w-full"
-                  variant={plan.id === "premium" ? "default" : "outline"}
-                >
-                  {plan.primaryAction}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="text-center py-8">Carregando planos...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {plans.map((plan) => (
+              <Card 
+                key={plan.id} 
+                className={`flex flex-col h-full border-2 ${
+                  plan.id === "premium" ? "border-purple-500 shadow-lg shadow-purple-100" : "border-gray-200"
+                }`}
+              >
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-2xl font-bold">R${plan.price}</span>
+                    {plan.duration && (
+                      <span className="text-sm text-gray-500">/{plan.duration}</span>
+                    )}
+                  </div>
+                  <CardDescription>{plan.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <ul className="space-y-2">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-start">
+                        <CheckCircle className="h-5 w-5 mr-2 text-purple-600 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+                <CardFooter className="flex flex-col space-y-2">
+                  <Button 
+                    onClick={() => handleAction(plan.id, "primary")}
+                    className="w-full"
+                    variant={plan.id === "premium" ? "default" : "outline"}
+                  >
+                    {plan.primaryAction}
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
       
       {/* Features Section */}

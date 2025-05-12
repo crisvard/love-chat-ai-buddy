@@ -9,6 +9,140 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agents: {
+        Row: {
+          gender: string
+          id: string
+          image: string
+          name: string
+        }
+        Insert: {
+          gender: string
+          id?: string
+          image: string
+          name: string
+        }
+        Update: {
+          gender?: string
+          id?: string
+          image?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      gifts: {
+        Row: {
+          emoji: string
+          id: string
+          name: string
+          price: number
+        }
+        Insert: {
+          emoji: string
+          id?: string
+          name: string
+          price: number
+        }
+        Update: {
+          emoji?: string
+          id?: string
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          description: string | null
+          duration: string
+          features: Json
+          id: string
+          name: string
+          price: number
+        }
+        Insert: {
+          description?: string | null
+          duration: string
+          features?: Json
+          id: string
+          name: string
+          price: number
+        }
+        Update: {
+          description?: string | null
+          duration?: string
+          features?: Json
+          id?: string
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          country: string
+          created_at: string
+          email: string
+          id: string
+          is_adult: boolean
+          name: string
+          terms_accepted: boolean
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          email: string
+          id: string
+          is_adult?: boolean
+          name: string
+          terms_accepted?: boolean
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          email?: string
+          id?: string
+          is_adult?: boolean
+          name?: string
+          terms_accepted?: boolean
+        }
+        Relationships: []
+      }
+      user_agent_selections: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          nickname: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          nickname: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          nickname?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_agent_selections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_subscriptions: {
         Row: {
           created_at: string
