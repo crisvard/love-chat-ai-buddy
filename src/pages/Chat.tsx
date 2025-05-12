@@ -3,11 +3,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
-import { Mic, Send, Phone, Video, Image, Smile, Gift } from "lucide-react";
+import { Mic, MicOff, Send, Phone, Video, VideoOff, Image, Smile, Gift } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import EmojiPicker, { EmojiStyle, EmojiClickData } from "emoji-picker-react";
+import PlanIndicator from "@/components/PlanIndicator";
+import { canUseFeature, getCurrentSubscription, isTrialActive } from "@/services/subscription";
 
 interface Message {
   id: string;
@@ -16,24 +19,24 @@ interface Message {
   timestamp: Date;
 }
 
-interface AgentProfile {
-  id: string;
-  name: string;
-  gender: "male" | "female";
-  image: string;
-  nickname?: string;
-}
-
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGiftMenu, setShowGiftMenu] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [featureNeeded, setFeatureNeeded] = useState<"audio" | "voice" | "video" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   
+  // Get subscription data
+  const [subscription, setSubscription] = useState(() => getCurrentSubscription());
+  const [trialActive, setTrialActive] = useState(
+    subscription.planId === "free" && isTrialActive(subscription.endDate)
+  );
+
   // Agent data from localStorage 
   const [agent, setAgent] = useState({
     name: "Ana",
@@ -69,6 +72,21 @@ const Chat = () => {
         { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
       ]);
     }
+
+    // Check subscription status and trial validity
+    const checkSubscription = () => {
+      const currentSub = getCurrentSubscription();
+      setSubscription(currentSub);
+      
+      if (currentSub.planId === "free") {
+        setTrialActive(isTrialActive(currentSub.endDate));
+      }
+    };
+    
+    checkSubscription();
+    const timer = setInterval(checkSubscription, 60000); // Check every minute
+    
+    return () => clearInterval(timer);
   }, []);
   
   // Check authentication
@@ -113,6 +131,13 @@ const Chat = () => {
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
     
+    // Check if trial has expired for free plan users
+    if (subscription.planId === "free" && !trialActive) {
+      setFeatureNeeded("audio"); // Using audio as a generic feature needed
+      setShowUpgradeDialog(true);
+      return;
+    }
+
     // Adicionar mensagem do usuário
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -154,8 +179,45 @@ const Chat = () => {
   };
   
   const toggleRecording = () => {
+    // Check if user can use audio feature
+    if (!canUseFeature(subscription.planId, "audio")) {
+      setFeatureNeeded("audio");
+      setShowUpgradeDialog(true);
+      return;
+    }
+
     setIsRecording(!isRecording);
     // Em um aplicativo real, aqui seria implementada a gravação de áudio
+  };
+
+  const handleVoiceCall = () => {
+    // Check if user can use voice call feature
+    if (!canUseFeature(subscription.planId, "voice")) {
+      setFeatureNeeded("voice");
+      setShowUpgradeDialog(true);
+      return;
+    }
+
+    // Implement voice call functionality here
+    toast({
+      title: "Chamada de voz",
+      description: "Iniciando chamada de voz...",
+    });
+  };
+
+  const handleVideoCall = () => {
+    // Check if user can use video call feature
+    if (!canUseFeature(subscription.planId, "video")) {
+      setFeatureNeeded("video");
+      setShowUpgradeDialog(true);
+      return;
+    }
+
+    // Implement video call functionality here
+    toast({
+      title: "Chamada de vídeo",
+      description: "Iniciando chamada de vídeo...",
+    });
   };
   
   const formatTime = (date: Date) => {
@@ -219,6 +281,33 @@ const Chat = () => {
     navigate("/login");
   };
 
+  // Function to get the target plan for feature upgrades
+  const getTargetPlanForFeature = (feature: "audio" | "voice" | "video"): string => {
+    switch (feature) {
+      case "audio":
+        return "Intermediário";
+      case "voice":
+      case "video":
+        return "Premium";
+      default:
+        return "Premium";
+    }
+  };
+
+  // Render message indicator for trial expiration
+  const renderTrialMessage = () => {
+    if (subscription.planId === "free" && !trialActive) {
+      return (
+        <div className="bg-yellow-100 p-3 text-center border-b border-yellow-200">
+          <p className="text-yellow-800 text-sm">
+            Seu período de teste expirou. Faça upgrade para continuar usando o chat.
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Cabeçalho do chat */}
@@ -237,19 +326,44 @@ const Chat = () => {
               <p className="text-xs text-purple-100">Online</p>
             </div>
           </div>
-          <div className="flex space-x-3">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-purple-700">
+          <div className="flex space-x-3 items-center">
+            {/* Plan Indicator */}
+            <PlanIndicator 
+              currentPlanId={subscription.planId} 
+              trialEndsAt={subscription.planId === "free" ? subscription.endDate : null}
+            />
+            
+            {/* Call buttons with plan-based restrictions */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white hover:bg-purple-700"
+              onClick={handleVoiceCall}
+            >
               <Phone className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-purple-700">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white hover:bg-purple-700"
+              onClick={handleVideoCall}
+            >
               <Video className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-purple-700" onClick={handleLogout}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white hover:bg-purple-700" 
+              onClick={handleLogout}
+            >
               Sair
             </Button>
           </div>
         </div>
       </header>
+      
+      {/* Trial expiration message */}
+      {renderTrialMessage()}
       
       {/* Área de mensagens */}
       <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
@@ -324,6 +438,37 @@ const Chat = () => {
         </div>
       )}
       
+      {/* Upgrade Dialog */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recurso Premium Necessário</DialogTitle>
+            <DialogDescription>
+              {featureNeeded === "audio" && "O recurso de áudio está disponível para usuários com plano Intermediário ou Premium."}
+              {featureNeeded === "voice" && "Chamadas de voz estão disponíveis apenas para usuários com plano Premium."}
+              {featureNeeded === "video" && "Chamadas de vídeo estão disponíveis apenas para usuários com plano Premium."}
+              {subscription.planId === "free" && !trialActive && "Seu período de teste expirou. Faça upgrade para continuar usando o chat."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-center font-medium">
+              Faça upgrade para o plano {getTargetPlanForFeature(featureNeeded || "audio")} para desbloquear este recurso.
+            </p>
+          </div>
+          <DialogFooter className="flex space-x-2 justify-center">
+            <Button variant="outline" onClick={() => setShowUpgradeDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => {
+              setShowUpgradeDialog(false);
+              navigate("/");
+            }}>
+              Ver Planos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Barra de entrada de mensagem */}
       <div className="p-3 border-t bg-white">
         <div className="flex items-center">
@@ -358,6 +503,7 @@ const Chat = () => {
             onKeyDown={handleKeyDown}
             placeholder="Digite sua mensagem..."
             className="mx-2"
+            disabled={subscription.planId === "free" && !trialActive}
           />
           {newMessage.trim() ? (
             <Button 
@@ -365,6 +511,7 @@ const Chat = () => {
               size="icon" 
               onClick={handleSendMessage}
               className="text-purple-600"
+              disabled={subscription.planId === "free" && !trialActive}
             >
               <Send className="h-5 w-5" />
             </Button>
@@ -374,8 +521,13 @@ const Chat = () => {
               size="icon"
               onClick={toggleRecording}
               className={isRecording ? "text-red-500" : "text-gray-500"}
+              disabled={!canUseFeature(subscription.planId, "audio")}
             >
-              <Mic className="h-5 w-5" />
+              {canUseFeature(subscription.planId, "audio") ? (
+                <Mic className="h-5 w-5" />
+              ) : (
+                <MicOff className="h-5 w-5" />
+              )}
             </Button>
           )}
         </div>
