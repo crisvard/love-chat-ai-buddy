@@ -12,6 +12,7 @@ import {
 export function Toaster() {
   const { toasts } = useToast()
 
+  // Esta verificação ainda é útil para garantir que não haja erros de renderização
   if (!toasts || !Array.isArray(toasts)) {
     return (
       <ToastProvider>
@@ -20,6 +21,8 @@ export function Toaster() {
     )
   }
 
+  // Como estamos usando o componente Toaster da sonner em App.tsx,
+  // este componente na verdade não exibirá os toasts, mas mantemos para compatibilidade
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {

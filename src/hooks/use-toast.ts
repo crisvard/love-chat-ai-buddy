@@ -1,5 +1,5 @@
 
-import { toast as sonnerToast, useToaster } from "sonner";
+import { toast as sonnerToast, Toaster as SonnerToaster } from "sonner";
 
 export interface ToastProps {
   title?: string;
@@ -59,11 +59,11 @@ export function toast({
 }
 
 export function useToast() {
-  // Obtemos o estado atual dos toasts do sonner
-  const { toasts } = useToaster();
-  
+  // A biblioteca sonner não exporta useToaster, então precisamos implementar nossa própria lógica
+  // Vamos retornar um array vazio para toasts, já que o componente Toaster da sonner
+  // gerencia seus próprios toasts internamente
   return {
     toast,
-    toasts: toasts || [], // Garantimos que sempre retornará um array, mesmo que seja vazio
+    toasts: [], // Array vazio, pois o gerenciamento é interno da biblioteca sonner
   };
 }

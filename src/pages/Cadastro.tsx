@@ -99,14 +99,14 @@ const Cadastro = () => {
 
     try {
       // 1. Registrar o usuário com email e senha
-      const { error: signUpError } = await signup(values.email, values.password, {
+      const signUpResult = await signup(values.email, values.password, {
         name: values.name,
         country: values.country,
         terms_accepted: true,
         is_adult: true,
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpResult.error) throw signUpResult.error;
 
       // 2. Obter o ID do usuário recém-criado
       const { data: userData } = await supabase.auth.getUser();
