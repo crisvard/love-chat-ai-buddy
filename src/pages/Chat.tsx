@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,7 +172,7 @@ const Chat = () => {
               { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
               { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
               { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
-              { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
+              { id: "4", name: "Presente", emoji: "🎁", price: "7.00" }
             ]);
           }
         }
@@ -187,10 +188,9 @@ const Chat = () => {
           setPremiumGifts([
             { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
             { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
-              { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
-              { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
-            ]);
-          }
+            { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
+            { id: "4", name: "Presente", emoji: "🎁", price: "7.00" }
+          ]);
         }
       }
     };
