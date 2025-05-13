@@ -26,6 +26,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Avatar } from "@/components/ui/avatar";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,13 +85,25 @@ const Cadastro = () => {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const { data, error } = await supabase
+        // Primeiro tentamos carregar da tabela ai_agents que é a nova tabela
+        const { data: aiAgents, error: aiError } = await supabase
           .from("ai_agents")
           .select("*")
           .eq("is_active", true);
 
-        if (error) throw error;
-        setAgents(data || []);
+        if (aiAgents && aiAgents.length > 0) {
+          setAgents(aiAgents);
+          setLoadingAgents(false);
+          return;
+        }
+
+        // Se não encontrou na tabela ai_agents, tenta na tabela agents (legado)
+        const { data: legacyAgents, error: legacyError } = await supabase
+          .from("agents")
+          .select("*");
+
+        if (legacyError) throw legacyError;
+        setAgents(legacyAgents || []);
       } catch (error) {
         console.error("Erro ao carregar agentes:", error);
         toast({
@@ -128,7 +142,7 @@ const Cadastro = () => {
         throw new Error("Falha ao obter informações do usuário após cadastro");
       }
 
-      // 3. Salvar a seleção do agente
+      // 3. Salvar a seleção do agente na tabela user_selected_agent (nova tabela)
       const { error: agentError } = await supabase
         .from("user_selected_agent")
         .insert({
@@ -137,7 +151,20 @@ const Cadastro = () => {
           nickname: values.nickname,
         });
 
-      if (agentError) throw agentError;
+      if (agentError) {
+        console.error("Erro ao salvar seleção do agente:", agentError);
+        
+        // Tentativa alternativa: salvar na tabela user_agent_selections (legado)
+        const { error: legacyError } = await supabase
+          .from("user_agent_selections")
+          .insert({
+            user_id: userData.user.id,
+            agent_id: values.agentId,
+            nickname: values.nickname,
+          });
+          
+        if (legacyError) throw legacyError;
+      }
 
       // Redirecionar para o chat após login bem-sucedido
       navigate("/chat");
@@ -268,32 +295,38 @@ const Cadastro = () => {
                         control={form.control}
                         name="agentId"
                         render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="space-y-4">
                             <FormLabel>Escolha seu companheiro</FormLabel>
-                            <div className="grid grid-cols-2 gap-2 mb-3">
+                            
+                            <div className="grid grid-cols-2 gap-3 mb-3">
                               {agents.map((agent) => (
                                 <div
                                   key={agent.id}
                                   onClick={() => form.setValue("agentId", agent.id)}
                                   className={`border rounded-lg p-3 cursor-pointer transition ${
                                     field.value === agent.id
-                                      ? "border-purple-500 bg-purple-50"
-                                      : "border-gray-200 hover:border-purple-300"
+                                      ? "border-purple-500 bg-purple-50 shadow-md"
+                                      : "border-gray-200 hover:border-purple-300 hover:shadow-sm"
                                   }`}
                                 >
-                                  <div className="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
-                                    <img
-                                      src={agent.image || "/placeholder.svg"}
-                                      alt={agent.name}
-                                      className="w-full h-full object-cover"
-                                    />
+                                  <div className="aspect-square overflow-hidden rounded-lg mb-2">
+                                    <AspectRatio ratio={1/1} className="bg-muted">
+                                      <Avatar className="w-full h-full">
+                                        <img
+                                          src={agent.image || "/placeholder.svg"}
+                                          alt={agent.name}
+                                          className="object-cover w-full h-full"
+                                        />
+                                      </Avatar>
+                                    </AspectRatio>
                                   </div>
-                                  <div className="text-sm font-medium text-center">
+                                  <p className="text-sm font-medium text-center truncate">
                                     {agent.name}
-                                  </div>
+                                  </p>
                                 </div>
                               ))}
                             </div>
+                            
                             <FormMessage />
                           </FormItem>
                         )}
@@ -306,9 +339,12 @@ const Cadastro = () => {
                           <FormItem>
                             <FormLabel>Como você quer chamar seu companheiro?</FormLabel>
                             <FormControl>
-                              <Input placeholder="Digite um apelido" {...field} />
+                              <Input placeholder="Digite um apelido carinhoso" {...field} />
                             </FormControl>
                             <FormMessage />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Exemplo: "Amor", "Querido(a)", "Meu bem"
+                            </p>
                           </FormItem>
                         )}
                       />

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
@@ -29,10 +30,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     getSession();
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setCurrentUser(session?.user ?? null);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signup = async (email: string, password: string, metadata?: Record<string, any>): Promise<boolean> => {
