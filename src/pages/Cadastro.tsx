@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,7 @@ const formSchema = z.object({
 
 const Cadastro = () => {
   const navigate = useNavigate();
-  const { currentUser, signUp } = useAuth();
+  const { currentUser, signup } = useAuth(); // Corrigido de signUp para signup
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<any[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
@@ -100,7 +99,7 @@ const Cadastro = () => {
 
     try {
       // 1. Registrar o usuário com email e senha
-      const { error: signUpError } = await signUp(values.email, values.password, {
+      const { error: signUpError } = await signup(values.email, values.password, {
         name: values.name,
         country: values.country,
         terms_accepted: true,

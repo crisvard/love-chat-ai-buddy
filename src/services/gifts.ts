@@ -18,7 +18,7 @@ export interface UserPurchasedGift {
   gift_id: string;
   purchase_date: string;
   price_paid: number;
-  transaction_details?: Record<string, any>;
+  transaction_details?: Record<string, any> | null;
   used_in_chat_message_id?: string | null;
 }
 
@@ -97,7 +97,19 @@ export const purchaseGift = async (giftId: string, price: number): Promise<UserP
       description: "Seu presente foi comprado com sucesso.",
     });
     
-    return data;
+    // Converter os dados para o tipo UserPurchasedGift
+    const purchasedGift: UserPurchasedGift = {
+      id: data.id,
+      user_id: data.user_id,
+      gift_id: data.gift_id,
+      purchase_date: data.purchase_date,
+      price_paid: data.price_paid,
+      transaction_details: data.transaction_details ? 
+        JSON.parse(JSON.stringify(data.transaction_details)) : null,
+      used_in_chat_message_id: data.used_in_chat_message_id
+    };
+    
+    return purchasedGift;
   } catch (error) {
     console.error("Error in purchaseGift:", error);
     toast({
@@ -130,7 +142,21 @@ export const fetchUserPurchasedGifts = async (): Promise<UserPurchasedGift[]> =>
       return [];
     }
     
-    return data;
+    // Converter os dados para o tipo UserPurchasedGift[]
+    const purchasedGifts: UserPurchasedGift[] = data.map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      gift_id: item.gift_id,
+      purchase_date: item.purchase_date,
+      price_paid: item.price_paid,
+      transaction_details: item.transaction_details ? 
+        JSON.parse(JSON.stringify(item.transaction_details)) : null,
+      used_in_chat_message_id: item.used_in_chat_message_id,
+      // Adicionamos a propriedade gift para acesso fácil
+      gift: item.gifts as Gift
+    })) as UserPurchasedGift[];
+    
+    return purchasedGifts;
   } catch (error) {
     console.error("Error in fetchUserPurchasedGifts:", error);
     return [];

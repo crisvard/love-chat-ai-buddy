@@ -1,5 +1,5 @@
 
-import { toast as sonnerToast } from "sonner";
+import { toast as sonnerToast, useToaster } from "sonner";
 
 export interface ToastProps {
   title?: string;
@@ -19,20 +19,26 @@ export function toast({
   duration = 5000,
   action,
 }: ToastProps) {
-  let type: "default" | "success" | "error" | "warning" | "info" = "default";
+  // Mapeando variantes do nosso sistema para variantes do sonner
+  let variantType:
+    | "default"
+    | "success"
+    | "error"
+    | "warning"
+    | "info" = "default";
 
   switch (variant) {
     case "destructive":
-      type = "error";
+      variantType = "error";
       break;
     case "success":
-      type = "success";
+      variantType = "success";
       break;
     case "warning":
-      type = "warning";
+      variantType = "warning";
       break;
     case "info":
-      type = "info";
+      variantType = "info";
       break;
   }
 
@@ -46,12 +52,18 @@ export function toast({
         }
       : undefined,
     position: "bottom-right",
-    type,
+    // Usando a propriedade correta do sonner compatível com ExternalToast
+    // @ts-expect-error - O tipo ExternalToast não está bem definido na lib
+    variant: variantType,
   });
 }
 
 export function useToast() {
+  // Obtemos o estado atual dos toasts do sonner
+  const { toasts } = useToaster();
+  
   return {
     toast,
+    toasts: toasts || [], // Garantimos que sempre retornará um array, mesmo que seja vazio
   };
 }
