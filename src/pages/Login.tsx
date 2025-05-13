@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,7 @@ const Login = () => {
   useEffect(() => {
     if (currentUser) {
       console.log("User already logged in:", currentUser);
-      if (currentUser.role === 'admin') {
-        navigate("/admin");
-      } else {
-        navigate("/chat");
-      }
+      navigate("/chat");
     }
   }, [currentUser, navigate]);
 
@@ -61,109 +58,12 @@ const Login = () => {
     try {
       console.log(`Attempting login for: ${email}`);
       
-      // Lista de administradores conhecidos
-      const knownAdminEmails = ['armempires@gmail.com', 'admin@example.com'];
-      const isKnownAdmin = (email === 'armempires@gmail.com' && password === 'mudar123') || 
-                           (email === 'admin' && password === 'admin');
-      
-      if (isKnownAdmin) {
-        console.log("Detectadas credenciais administrativas");
-        
-        // Logout prévio para evitar conflitos
-        await supabase.auth.signOut();
-        
-        // Determinar qual email usar para login real
-        const loginEmail = email === 'admin' ? 'admin@example.com' : email;
-        const loginPassword = email === 'admin' ? 'adminpassword' : password;
-        
-        // Efetuar login
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password: loginPassword
-        });
-        
-        if (error) {
-          console.error("Erro no login administrativo:", error);
-          throw new Error("Falha na autenticação de administrador. Verifique suas credenciais.");
-        }
-        
-        console.log("Login administrativo bem-sucedido:", data.user?.email);
-        
-        // Configurar plano administrativo se necessário
-        if (data.user) {
-          try {
-            const { data: subsData, error: subsError } = await supabase
-              .from('user_subscriptions')
-              .select('*')
-              .eq('user_id', data.user.id)
-              .eq('plan_id', 'admin')
-              .maybeSingle();
-              
-            if (subsError) {
-              console.error("Erro ao verificar plano de administrador:", subsError);
-            }
-            
-            if (!subsData) {
-              console.log("Configurando plano de administrador");
-              const { error: insertError } = await supabase
-                .from('user_subscriptions')
-                .upsert({
-                  user_id: data.user.id,
-                  plan_id: 'admin',
-                  start_date: new Date().toISOString(),
-                  end_date: null,
-                  is_active: true
-                });
-                
-              if (insertError) {
-                console.error("Erro ao configurar plano de administrador:", insertError);
-              }
-            }
-          } catch (err) {
-            console.error("Erro ao verificar/configurar plano de administrador:", err);
-          }
-        }
-        
-        toast({
-          title: "Login de Administrador",
-          description: "Login administrativo realizado com sucesso!",
-        });
-        
-        // Redirecionar para a página de administração
-        navigate("/admin");
-        return;
-      }
-      
-      // Login normal para outros usuários
+      // Login normal para usuários
       console.log("Tentando login regular para:", email);
       const success = await login(email, password);
       
       if (success) {
         console.log("Login regular bem-sucedido");
-        
-        try {
-          // Verificar se o usuário é admin para determinar redirecionamento
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session?.user) {
-            const { data, error } = await supabase
-              .from('user_subscriptions')
-              .select('plan_id')
-              .eq('user_id', session.user.id)
-              .eq('plan_id', 'admin')
-              .maybeSingle();
-            
-            if (!error && data) {
-              console.log("Detectado usuário admin, redirecionando para /admin");
-              navigate("/admin");
-              return;
-            }
-          }
-        } catch (err) {
-          console.error("Erro ao verificar status de administrador:", err);
-        }
-        
-        // Redirecionar usuário regular para o chat
         navigate("/chat");
       } else {
         throw new Error("Falha na autenticação. Verifique suas credenciais.");

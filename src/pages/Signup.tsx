@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { signup, currentUser } = useAuth();
+  const { signup, currentUser, logout } = useAuth();
   const [searchParams] = useSearchParams();
   const selectedPlan = searchParams.get("plan") || "free";
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,10 +27,10 @@ const Signup = () => {
   const [isAdult, setIsAdult] = useState(false);
   const [planInfo, setPlanInfo] = useState<any>(null);
 
-  // Se o usuário já estiver logado, redirecionar para a página de personalização
+  // Se o usuário já estiver logado, redirecionar para a página de chat
   useEffect(() => {
     if (currentUser) {
-      navigate("/personalize");
+      navigate("/chat");
     }
   }, [currentUser, navigate]);
 
@@ -129,7 +130,7 @@ const Signup = () => {
       });
       
       if (success) {
-        // Após o cadastro bem-sucedido, fazemos login automaticamente e redirecionamos para /personalize
+        // Após o cadastro bem-sucedido, fazemos login automaticamente e redirecionamos para /chat
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -145,9 +146,9 @@ const Signup = () => {
         } else {
           toast({
             title: "Conta criada com sucesso!",
-            description: "Agora você será direcionado para personalizar seu namorado virtual.",
+            description: "Você será direcionado para o chat.",
           });
-          navigate("/personalize");
+          navigate("/chat");
         }
       }
     } catch (error) {

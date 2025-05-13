@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ const formSchema = z.object({
 
 const Cadastro = () => {
   const navigate = useNavigate();
-  const { currentUser, signup } = useAuth(); // Corrigido de signUp para signup
+  const { currentUser, signup, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<any[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
@@ -60,6 +61,16 @@ const Cadastro = () => {
       nickname: "",
     },
   });
+
+  // Adicionar uma função para lidar com o botão voltar
+  const handleGoBack = async () => {
+    // Se o usuário estiver logado, fazer logout
+    if (currentUser) {
+      await logout();
+    }
+    // Redirecionar para a página inicial
+    navigate("/");
+  };
 
   useEffect(() => {
     // Se o usuário já estiver logado, redirecionar para o chat
@@ -160,7 +171,17 @@ const Cadastro = () => {
       <div className="container max-w-md mx-auto px-4">
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Criar sua conta</CardTitle>
+            <div className="flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleGoBack}
+              >
+                Voltar
+              </Button>
+              <CardTitle className="text-2xl font-bold">Criar sua conta</CardTitle>
+              <div className="w-12"></div> {/* Elemento vazio para equilibrar o layout */}
+            </div>
             <CardDescription className="text-center">
               Preencha seus dados e personalize seu companheiro virtual
             </CardDescription>

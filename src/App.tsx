@@ -9,40 +9,12 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Personalize from "./pages/Personalize";
 import Chat from "./pages/Chat";
-import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-import SuperAdmin from "./pages/SuperAdmin";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useEffect } from "react";
 import Cadastro from "./pages/Cadastro";
 
 const queryClient = new QueryClient();
-
-// Protected route component for admin access
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentUser, isAdmin } = useAuth();
-  
-  useEffect(() => {
-    console.log("AdminRoute check:", { 
-      user: currentUser?.email, 
-      role: currentUser?.role,
-      isAdmin: isAdmin() 
-    });
-  }, [currentUser]);
-  
-  // Se não estiver logado, redirecionar para login
-  if (!currentUser) {
-    return <Navigate to="/login" state={{ message: "Você precisa estar logado para acessar esta página" }} />;
-  }
-  
-  // Se não for admin, redirecionar para chat
-  if (!isAdmin()) {
-    return <Navigate to="/chat" state={{ message: "Você não tem permissão para acessar esta página" }} />;
-  }
-  
-  // Se for admin, renderizar a página
-  return <>{children}</>;
-};
 
 // App wrapper with Auth provider
 const AppWithAuth = () => {
@@ -56,15 +28,6 @@ const AppWithAuth = () => {
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/personalize" element={<Personalize />} />
           <Route path="/chat" element={<Chat />} />
-          <Route 
-            path="/admin" 
-            element={
-              <AdminRoute>
-                <Admin />
-              </AdminRoute>
-            } 
-          />
-          <Route path="/su" element={<SuperAdmin />} />
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
