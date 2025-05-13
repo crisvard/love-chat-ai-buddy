@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import SuperAdmin from "./pages/SuperAdmin";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useEffect } from "react";
+import Cadastro from "./pages/Cadastro";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const AppWithAuth = () => {
           <Route path="/" element={<Index />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/personalize" element={<Personalize />} />
           <Route path="/chat" element={<Chat />} />
           <Route 

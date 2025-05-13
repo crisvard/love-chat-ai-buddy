@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
+import { getCurrentSubscription, isTrialActive } from "@/services/subscription";
+import { toast } from "@/components/ui/use-toast";
 
 interface Plan {
   id: string;
@@ -23,6 +25,8 @@ const Index = () => {
   const { currentUser } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
   
   useEffect(() => {
     // Fetch plans from Supabase
@@ -32,7 +36,8 @@ const Index = () => {
         const { data, error } = await supabase
           .from('plans')
           .select('*')
-          .order('price', { ascending: true });
+          .order('display_order', { ascending: true })
+          .eq('is_active', true);
           
         if (error) throw error;
         
@@ -109,23 +114,45 @@ const Index = () => {
       }
     };
     
+    // Fetch current user's subscription if they are logged in
+    const fetchUserSubscription = async () => {
+      if (currentUser) {
+        try {
+          const { planId, endDate } = await getCurrentSubscription();
+          setCurrentPlan(planId);
+          
+          // Check if trial is expired
+          if (planId === "free" && endDate) {
+            const active = isTrialActive(endDate);
+            setIsTrialExpired(!active);
+          }
+        } catch (error) {
+          console.error("Error fetching user subscription:", error);
+        }
+      }
+    };
+    
     fetchPlans();
-  }, []);
+    fetchUserSubscription();
+  }, [currentUser]);
   
   const handleAction = (planId: string, actionType: "primary" | "secondary") => {
     if (currentUser) {
-      navigate("/personalize");
-    } else {
-      if (planId === "free") {
-        navigate("/signup");
+      // Usuário já logado
+      if (planId === currentPlan) {
+        // Continuar com plano atual
+        navigate("/chat");
       } else {
-        navigate("/signup?plan=" + planId);
+        // Upgrade de plano
+        navigate("/personalize?upgrade=true&plan=" + planId);
       }
+    } else {
+      // Usuário não logado
+      navigate("/cadastro");
     }
   };
 
   return (
-    
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
       {/* Header */}
       <header className="container mx-auto pt-10 pb-6 px-4">
@@ -135,14 +162,43 @@ const Index = () => {
         <p className="text-lg md:text-xl text-center mt-4 text-gray-600 max-w-2xl mx-auto">
           Tenha sempre alguém especial para conversar, sem julgamentos ou complicações
         </p>
+        
         {currentUser && (
           <div className="mt-6 text-center">
+            {!isTrialExpired || currentPlan !== "free" ? (
+              <Button 
+                onClick={() => navigate("/chat")}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                Continuar com {plans.find(p => p.id === currentPlan)?.name || "seu plano"} e ir para o chat
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => navigate("/personalize")}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                Escolha seu plano para continuar
+              </Button>
+            )}
+          </div>
+        )}
+
+        {!currentUser && (
+          <div className="mt-6 text-center space-y-4">
             <Button 
-              onClick={() => navigate("/chat")}
+              onClick={() => navigate("/cadastro")}
               className="bg-purple-600 hover:bg-purple-700"
             >
-              Ir para o chat
+              Criar nova conta
             </Button>
+            <div>
+              <Button 
+                variant="outline"
+                onClick={() => navigate("/login")}
+              >
+                Já tem uma conta? Entrar
+              </Button>
+            </div>
           </div>
         )}
       </header>
@@ -150,7 +206,7 @@ const Index = () => {
       {/* Plans Section */}
       <section className="container mx-auto py-12 px-4">
         <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">
-          Escolha o plano ideal para você
+          {currentUser ? "Upgrade seu plano" : "Escolha o plano ideal para você"}
         </h2>
         
         {isLoading ? (
@@ -161,10 +217,19 @@ const Index = () => {
               <Card 
                 key={plan.id} 
                 className={`flex flex-col h-full border-2 ${
-                  plan.id === "premium" ? "border-purple-500 shadow-lg shadow-purple-100" : "border-gray-200"
+                  plan.id === "premium" ? 
+                    "border-purple-500 shadow-lg shadow-purple-100" : 
+                  plan.id === currentPlan ? 
+                    "border-green-500 shadow-lg shadow-green-100" : 
+                    "border-gray-200"
                 }`}
               >
                 <CardHeader>
+                  {plan.id === currentPlan && (
+                    <div className="mb-2 bg-green-100 text-green-800 text-sm py-1 px-3 rounded-full inline-block">
+                      Seu plano atual
+                    </div>
+                  )}
                   <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
                   <div className="mt-2">
                     <span className="text-2xl font-bold">R${plan.price}</span>
@@ -189,8 +254,15 @@ const Index = () => {
                     onClick={() => handleAction(plan.id, "primary")}
                     className="w-full"
                     variant={plan.id === "premium" ? "default" : "outline"}
+                    disabled={currentUser && plan.id === currentPlan && isTrialExpired}
                   >
-                    {plan.primaryAction}
+                    {currentUser
+                      ? plan.id === currentPlan
+                        ? isTrialExpired && plan.id === "free"
+                          ? "Período de teste expirado"
+                          : "Continuar com este plano"
+                        : "Fazer upgrade"
+                      : plan.primaryAction}
                   </Button>
                 </CardFooter>
               </Card>

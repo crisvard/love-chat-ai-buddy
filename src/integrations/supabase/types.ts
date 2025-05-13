@@ -65,20 +65,26 @@ export type Database = {
       }
       gifts: {
         Row: {
+          created_at: string | null
           emoji: string
           id: string
+          is_active: boolean | null
           name: string
           price: number
         }
         Insert: {
+          created_at?: string | null
           emoji: string
           id?: string
+          is_active?: boolean | null
           name: string
           price: number
         }
         Update: {
+          created_at?: string | null
           emoji?: string
           id?: string
+          is_active?: boolean | null
           name?: string
           price?: number
         }
@@ -190,7 +196,9 @@ export type Database = {
           created_at: string
           gift_id: string
           id: string
+          price_paid: number
           purchase_date: string
+          transaction_details: Json | null
           updated_at: string
           used_in_chat_message_id: string | null
           user_id: string
@@ -199,7 +207,9 @@ export type Database = {
           created_at?: string
           gift_id: string
           id?: string
+          price_paid?: number
           purchase_date?: string
+          transaction_details?: Json | null
           updated_at?: string
           used_in_chat_message_id?: string | null
           user_id: string
@@ -208,7 +218,9 @@ export type Database = {
           created_at?: string
           gift_id?: string
           id?: string
+          price_paid?: number
           purchase_date?: string
+          transaction_details?: Json | null
           updated_at?: string
           used_in_chat_message_id?: string | null
           user_id?: string
