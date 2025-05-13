@@ -34,3 +34,55 @@ export const supabase = createClient<Database>(
     }
   }
 );
+
+// Helper function to check if the auth session is still valid
+export const isSessionValid = async (): Promise<boolean> => {
+  const { data } = await supabase.auth.getSession();
+  return !!data.session;
+};
+
+// Helper function to preload agent data into localStorage (used on login/signup)
+export const preloadAgentData = async (userId: string): Promise<boolean> => {
+  try {
+    // Try new table first
+    const { data: selectedAgentData, error: agentError } = await supabase
+      .from('user_selected_agent')
+      .select('nickname, ai_agents!selected_agent_id(*)')
+      .eq('user_id', userId)
+      .single();
+      
+    if (!agentError && selectedAgentData) {
+      const agentData = {
+        id: selectedAgentData.ai_agents?.id || '',
+        name: selectedAgentData.ai_agents?.name || '',
+        image: selectedAgentData.ai_agents?.image || '',
+        nickname: selectedAgentData.nickname
+      };
+      localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+      return true;
+    }
+    
+    // Try legacy table
+    const { data: legacyData, error: legacyError } = await supabase
+      .from('user_agent_selections')
+      .select('nickname, agents(*)')
+      .eq('user_id', userId)
+      .single();
+      
+    if (!legacyError && legacyData) {
+      const agentData = {
+        id: legacyData.agents?.id || '',
+        name: legacyData.agents?.name || '',
+        image: legacyData.agents?.image || '',
+        nickname: legacyData.nickname
+      };
+      localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error preloading agent data:", error);
+    return false;
+  }
+};

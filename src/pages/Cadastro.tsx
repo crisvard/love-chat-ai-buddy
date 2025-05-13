@@ -51,6 +51,7 @@ const Cadastro = () => {
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<any[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -119,16 +120,35 @@ const Cadastro = () => {
     fetchAgents();
   }, []);
 
+  // Update selectedAgent when agentId changes
+  useEffect(() => {
+    const agentId = form.watch("agentId");
+    if (agentId) {
+      const agent = agents.find(a => a.id === agentId);
+      setSelectedAgent(agent);
+    }
+  }, [form.watch("agentId"), agents]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
 
     try {
-      // 1. Registrar o usuário com email e senha
+      // Find the selected agent to get its details
+      const agent = agents.find(a => a.id === values.agentId);
+      if (!agent) {
+        throw new Error('Agente não encontrado');
+      }
+
+      // 1. Registrar o usuário com email e senha e metadados do agente
       const success = await signup(values.email, values.password, {
         name: values.name,
         country: values.country,
         terms_accepted: true,
         is_adult: true,
+        agentId: values.agentId,
+        agentName: agent.name,
+        agentImage: agent.image,
+        nickname: values.nickname
       });
 
       if (!success) {
@@ -165,6 +185,15 @@ const Cadastro = () => {
           
         if (legacyError) throw legacyError;
       }
+
+      // Cache the agent data in localStorage for immediate access
+      const agentData = {
+        id: values.agentId,
+        name: agent.name,
+        image: agent.image,
+        nickname: values.nickname
+      };
+      localStorage.setItem("selectedAgent", JSON.stringify(agentData));
 
       // Redirecionar para o chat após login bem-sucedido
       navigate("/chat");

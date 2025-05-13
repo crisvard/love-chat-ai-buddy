@@ -21,19 +21,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setCurrentUser(session?.user ?? null);
+    });
+
+    // THEN check for existing session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-
       setSession(session);
       setCurrentUser(session?.user ?? null);
     };
 
     getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setCurrentUser(session?.user ?? null);
-    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -54,6 +55,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setCurrentUser(data.user);
+      
+      // If we have agent selection data, store it in localStorage for immediate access
+      if (metadata?.agentId && metadata?.agentName && metadata?.agentImage && metadata?.nickname) {
+        const agentData = {
+          id: metadata.agentId,
+          name: metadata.agentName,
+          image: metadata.agentImage,
+          nickname: metadata.nickname
+        };
+        localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+      }
+      
       return true;
     } catch (error) {
       console.error("Erro durante o cadastro:", error);
@@ -74,6 +87,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setCurrentUser(data.user);
+      
+      // Load agent data after successful login and cache it
+      if (data.user) {
+        try {
+          // First try to get from user_selected_agent table (new table)
+          const { data: selectedAgentData, error: agentError } = await supabase
+            .from('user_selected_agent')
+            .select('nickname, ai_agents!selected_agent_id(*)')
+            .eq('user_id', data.user.id)
+            .single();
+            
+          if (!agentError && selectedAgentData) {
+            const agentData = {
+              id: selectedAgentData.ai_agents?.id || '',
+              name: selectedAgentData.ai_agents?.name || '',
+              image: selectedAgentData.ai_agents?.image || '',
+              nickname: selectedAgentData.nickname
+            };
+            localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+          } else {
+            // Fallback to user_agent_selections table (legacy)
+            const { data: legacyData, error: legacyError } = await supabase
+              .from('user_agent_selections')
+              .select('nickname, agents(*)')
+              .eq('user_id', data.user.id)
+              .single();
+              
+            if (!legacyError && legacyData) {
+              const agentData = {
+                id: legacyData.agents?.id || '',
+                name: legacyData.agents?.name || '',
+                image: legacyData.agents?.image || '',
+                nickname: legacyData.nickname
+              };
+              localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+            }
+          }
+        } catch (error) {
+          console.error("Error loading agent data:", error);
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error("Erro durante o login:", error);
@@ -85,6 +140,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setCurrentUser(null);
+      // Clear cached agent data on logout
+      localStorage.removeItem("selectedAgent");
       navigate('/');
     } catch (error) {
       console.error("Erro ao fazer logout:", error);

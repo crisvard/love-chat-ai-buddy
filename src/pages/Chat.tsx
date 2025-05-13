@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +38,11 @@ const Chat = () => {
   });
   const [trialActive, setTrialActive] = useState(false);
 
-  // Agent data from localStorage 
+  // Agent data from localStorage with better default values
   const [agent, setAgent] = useState({
-    name: "Ana",
-    nickname: "Amor",
-    avatar: "https://randomuser.me/api/portraits/women/44.jpg"
+    name: "",
+    nickname: "",
+    avatar: ""
   });
 
   // Load premium gifts from localStorage
@@ -52,9 +51,56 @@ const Chat = () => {
   useEffect(() => {
     // Load selected agent
     const loadAgentData = async () => {
-      if (currentUser) {
+      // First try to get from localStorage (this should have been set during login or signup)
+      const selectedAgentData = localStorage.getItem("selectedAgent");
+      if (selectedAgentData) {
         try {
-          // First try to get from Supabase
+          const selectedAgent = JSON.parse(selectedAgentData);
+          setAgent({
+            name: selectedAgent.name,
+            nickname: selectedAgent.nickname || "Amor",
+            avatar: selectedAgent.image
+          });
+          console.log("Agent data loaded from localStorage:", selectedAgent);
+          return;
+        } catch (error) {
+          console.error("Error parsing agent data from localStorage:", error);
+        }
+      }
+
+      // If localStorage fails or is empty, try to fetch from Supabase
+      if (currentUser) {
+        console.log("Trying to load agent data from Supabase for user:", currentUser.id);
+        try {
+          // First try to get from user_selected_agent (new table)
+          const { data: selectedAgentData, error: agentError } = await supabase
+            .from('user_selected_agent')
+            .select('nickname, ai_agents!selected_agent_id(*)')
+            .eq('user_id', currentUser.id)
+            .single();
+            
+          if (!agentError && selectedAgentData) {
+            const agentData = {
+              name: selectedAgentData.ai_agents?.name || "Ana",
+              nickname: selectedAgentData.nickname || "Amor",
+              avatar: selectedAgentData.ai_agents?.image || "https://randomuser.me/api/portraits/women/44.jpg"
+            };
+            setAgent(agentData);
+            
+            // Also save to localStorage for future use
+            localStorage.setItem("selectedAgent", JSON.stringify({
+              id: selectedAgentData.ai_agents?.id || '',
+              name: agentData.name,
+              image: agentData.avatar,
+              nickname: agentData.nickname
+            }));
+            
+            console.log("Agent data loaded from user_selected_agent:", agentData);
+            return;
+          }
+          
+          // Fallback to user_agent_selections table (legacy)
+          console.log("Falling back to user_agent_selections table");
           const { data, error } = await supabase
             .from('user_agent_selections')
             .select('agents(*), nickname')
@@ -63,36 +109,39 @@ const Chat = () => {
             
           if (!error && data) {
             const agentData = data.agents as {name: string, image: string};
-            setAgent({
+            const agentInfo = {
               name: agentData.name,
-              nickname: data.nickname,
+              nickname: data.nickname || "Amor",
               avatar: agentData.image
-            });
+            };
+            setAgent(agentInfo);
+            
+            // Also save to localStorage for future use
+            localStorage.setItem("selectedAgent", JSON.stringify({
+              id: data.agents?.id || '',
+              name: agentInfo.name,
+              image: agentInfo.avatar,
+              nickname: agentInfo.nickname
+            }));
+            
+            console.log("Agent data loaded from user_agent_selections:", agentInfo);
           } else {
-            // Fallback to localStorage
-            const selectedAgentData = localStorage.getItem("selectedAgent");
-            if (selectedAgentData) {
-              const selectedAgent = JSON.parse(selectedAgentData);
-              setAgent({
-                name: selectedAgent.name,
-                nickname: selectedAgent.nickname || "Amor",
-                avatar: selectedAgent.image
-              });
-            }
+            console.log("No agent data found in Supabase, using defaults");
+            // Use defaults if no data is found
+            setAgent({
+              name: "Ana",
+              nickname: "Amor",
+              avatar: "https://randomuser.me/api/portraits/women/44.jpg"
+            });
           }
         } catch (error) {
-          console.error("Error loading agent data:", error);
-          
-          // Fallback to localStorage
-          const selectedAgentData = localStorage.getItem("selectedAgent");
-          if (selectedAgentData) {
-            const selectedAgent = JSON.parse(selectedAgentData);
-            setAgent({
-              name: selectedAgent.name,
-              nickname: selectedAgent.nickname || "Amor",
-              avatar: selectedAgent.image
-            });
-          }
+          console.error("Error loading agent data from Supabase:", error);
+          // Use defaults if error occurs
+          setAgent({
+            name: "Ana",
+            nickname: "Amor",
+            avatar: "https://randomuser.me/api/portraits/women/44.jpg"
+          });
         }
       }
     };
@@ -138,9 +187,10 @@ const Chat = () => {
           setPremiumGifts([
             { id: "1", name: "Coração Pulsante", emoji: "❤️", price: "5.00" },
             { id: "2", name: "Diamante", emoji: "💎", price: "10.00" },
-            { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
-            { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
-          ]);
+              { id: "3", name: "Rosa", emoji: "🌹", price: "3.00" },
+              { id: "4", name: "Presente", emoji: "🎁", price: "7.00" },
+            ]);
+          }
         }
       }
     };
