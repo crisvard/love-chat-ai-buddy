@@ -10,28 +10,25 @@ import Login from "./pages/Login";
 import Personalize from "./pages/Personalize";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { useEffect } from "react";
+import { AuthProvider } from "./context/AuthContext";
 import Cadastro from "./pages/Cadastro";
 
 const queryClient = new QueryClient();
 
-// App wrapper with Auth provider
-const AppWithAuth = () => {
+// App wrapper with routes
+const AppRoutes = () => {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/cadastro" element={<Cadastro />} />
-          <Route path="/personalize" element={<Personalize />} />
-          <Route path="/chat" element={<Chat />} />
-          {/* Catch-all route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Cadastro />} />
+        <Route path="/personalize" element={<Personalize />} />
+        <Route path="/chat" element={<Chat />} />
+        {/* Catch-all route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </AuthProvider>
   );
 };
@@ -41,7 +38,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AppWithAuth />
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
