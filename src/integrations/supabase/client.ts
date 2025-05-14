@@ -19,6 +19,7 @@ export const supabase = createClient<Database>(
       detectSessionInUrl: true,
       storage: localStorage
     },
+    // Improved realtime configuration
     realtime: {
       params: {
         eventsPerSecond: 10,
@@ -31,6 +32,13 @@ export const supabase = createClient<Database>(
     },
     db: {
       schema: 'public'
+    },
+    // Add query performance options
+    postgrest: {
+      // Auto-apply count headers for pagination
+      headers: {
+        'Prefer': 'count=exact'
+      }
     }
   }
 );

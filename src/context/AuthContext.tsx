@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { getFromCache, saveToCache, clearCache } from '@/utils/cacheUtils';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -12,6 +13,16 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAdmin: () => boolean;
 }
+
+// Cache keys
+const CACHE_KEYS = {
+  AGENT_DATA: 'selected_agent_data'
+};
+
+// Cache TTL values
+const CACHE_TTL = {
+  AGENT: 60 * 60 * 1000 // 1 hour - agent data rarely changes
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -65,6 +76,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           nickname: metadata.nickname
         };
         localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+        
+        // Also cache it
+        saveToCache(CACHE_KEYS.AGENT_DATA, agentData, CACHE_TTL.AGENT);
       }
       
       return true;
@@ -90,49 +104,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Load agent data after successful login and cache it
       if (data.user) {
-        try {
-          // First try to get from user_selected_agent table (new table)
-          const { data: selectedAgentData, error: agentError } = await supabase
-            .from('user_selected_agent')
-            .select('nickname, ai_agents!selected_agent_id(*)')
-            .eq('user_id', data.user.id)
-            .single();
-            
-          if (!agentError && selectedAgentData) {
-            const agentData = {
-              id: selectedAgentData.ai_agents?.id || '',
-              name: selectedAgentData.ai_agents?.name || '',
-              image: selectedAgentData.ai_agents?.image || '',
-              nickname: selectedAgentData.nickname
-            };
-            localStorage.setItem("selectedAgent", JSON.stringify(agentData));
-          } else {
-            // Fallback to user_agent_selections table (legacy)
-            const { data: legacyData, error: legacyError } = await supabase
-              .from('user_agent_selections')
-              .select('nickname, agents(*)')
-              .eq('user_id', data.user.id)
-              .single();
-              
-            if (!legacyError && legacyData) {
-              const agentData = {
-                id: legacyData.agents?.id || '',
-                name: legacyData.agents?.name || '',
-                image: legacyData.agents?.image || '',
-                nickname: legacyData.nickname
-              };
-              localStorage.setItem("selectedAgent", JSON.stringify(agentData));
-            }
-          }
-        } catch (error) {
-          console.error("Error loading agent data:", error);
-        }
+        await loadAndCacheAgentData(data.user.id);
       }
       
       return true;
     } catch (error) {
       console.error("Erro durante o login:", error);
       return false;
+    }
+  };
+  
+  // Separate function to load and cache agent data
+  const loadAndCacheAgentData = async (userId: string): Promise<void> => {
+    try {
+      // First check cache
+      const cachedAgent = getFromCache(CACHE_KEYS.AGENT_DATA);
+      if (cachedAgent) {
+        console.log("Using cached agent data", cachedAgent);
+        return;
+      }
+      
+      // First try to get from user_selected_agent table (new table)
+      const { data: selectedAgentData, error: agentError } = await supabase
+        .from('user_selected_agent')
+        .select('nickname, ai_agents!selected_agent_id(*)')
+        .eq('user_id', userId)
+        .single();
+        
+      if (!agentError && selectedAgentData) {
+        const agentData = {
+          id: selectedAgentData.ai_agents?.id || '',
+          name: selectedAgentData.ai_agents?.name || '',
+          image: selectedAgentData.ai_agents?.image || '',
+          nickname: selectedAgentData.nickname
+        };
+        localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+        saveToCache(CACHE_KEYS.AGENT_DATA, agentData, CACHE_TTL.AGENT);
+        return;
+      }
+      
+      // Fallback to user_agent_selections table (legacy)
+      const { data: legacyData, error: legacyError } = await supabase
+        .from('user_agent_selections')
+        .select('nickname, agents(*)')
+        .eq('user_id', userId)
+        .single();
+        
+      if (!legacyError && legacyData) {
+        const agentData = {
+          id: legacyData.agents?.id || '',
+          name: legacyData.agents?.name || '',
+          image: legacyData.agents?.image || '',
+          nickname: legacyData.nickname
+        };
+        localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+        saveToCache(CACHE_KEYS.AGENT_DATA, agentData, CACHE_TTL.AGENT);
+        return;
+      }
+    } catch (error) {
+      console.error("Error loading agent data:", error);
     }
   };
 
@@ -142,6 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(null);
       // Clear cached agent data on logout
       localStorage.removeItem("selectedAgent");
+      // Clear all cache
+      clearCache();
       navigate('/');
     } catch (error) {
       console.error("Erro ao fazer logout:", error);

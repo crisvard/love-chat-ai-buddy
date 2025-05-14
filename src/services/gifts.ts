@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { getFromCache, saveToCache, clearCacheItem } from "@/utils/cacheUtils";
 
 export interface Gift {
   id: string;
@@ -20,11 +21,31 @@ export interface UserPurchasedGift {
   price_paid: number;
   transaction_details?: Record<string, any> | null;
   used_in_chat_message_id?: string | null;
+  gift?: Gift; // For joined queries
 }
+
+// Cache keys
+const CACHE_KEYS = {
+  ACTIVE_GIFTS: 'active_gifts',
+  USER_PURCHASED_GIFTS: 'user_purchased_gifts'
+};
+
+// Cache TTL in milliseconds
+const CACHE_TTL = {
+  GIFTS: 30 * 60 * 1000, // 30 minutes for gifts list - doesn't change often
+  USER_GIFTS: 5 * 60 * 1000 // 5 minutes for user purchased gifts - may change
+};
 
 // Carregar gifts ativos do Supabase
 export const fetchActiveGifts = async (): Promise<Gift[]> => {
   try {
+    // Check cache first
+    const cachedGifts = getFromCache<Gift[]>(CACHE_KEYS.ACTIVE_GIFTS);
+    if (cachedGifts) {
+      console.log("Using cached active gifts", cachedGifts);
+      return cachedGifts;
+    }
+
     const { data, error } = await supabase
       .from('gifts')
       .select('*')
@@ -41,6 +62,8 @@ export const fetchActiveGifts = async (): Promise<Gift[]> => {
       return [];
     }
     
+    // Cache the results
+    saveToCache(CACHE_KEYS.ACTIVE_GIFTS, data, CACHE_TTL.GIFTS);
     return data;
   } catch (error) {
     console.error("Error in fetchActiveGifts:", error);
@@ -109,6 +132,9 @@ export const purchaseGift = async (giftId: string, price: number): Promise<UserP
       used_in_chat_message_id: data.used_in_chat_message_id
     };
     
+    // Invalidate the user purchased gifts cache
+    clearCacheItem(CACHE_KEYS.USER_PURCHASED_GIFTS);
+    
     return purchasedGift;
   } catch (error) {
     console.error("Error in purchaseGift:", error);
@@ -124,6 +150,13 @@ export const purchaseGift = async (giftId: string, price: number): Promise<UserP
 // Buscar os gifts que um usuário comprou
 export const fetchUserPurchasedGifts = async (): Promise<UserPurchasedGift[]> => {
   try {
+    // Check cache first
+    const cachedUserGifts = getFromCache<UserPurchasedGift[]>(CACHE_KEYS.USER_PURCHASED_GIFTS);
+    if (cachedUserGifts) {
+      console.log("Using cached user purchased gifts", cachedUserGifts);
+      return cachedUserGifts;
+    }
+
     const { data: userData, error: userError } = await supabase.auth.getUser();
     
     if (userError || !userData.user) {
@@ -156,6 +189,8 @@ export const fetchUserPurchasedGifts = async (): Promise<UserPurchasedGift[]> =>
       gift: item.gifts as Gift
     })) as UserPurchasedGift[];
     
+    // Cache the results
+    saveToCache(CACHE_KEYS.USER_PURCHASED_GIFTS, purchasedGifts, CACHE_TTL.USER_GIFTS);
     return purchasedGifts;
   } catch (error) {
     console.error("Error in fetchUserPurchasedGifts:", error);
@@ -179,6 +214,8 @@ export const markGiftAsUsed = async (giftPurchaseId: string, messageId: string):
       return false;
     }
     
+    // Invalidate the user purchased gifts cache
+    clearCacheItem(CACHE_KEYS.USER_PURCHASED_GIFTS);
     return true;
   } catch (error) {
     console.error("Error in markGiftAsUsed:", error);
