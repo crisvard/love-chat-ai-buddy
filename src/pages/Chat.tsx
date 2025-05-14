@@ -12,12 +12,16 @@ import EmojiPicker, { EmojiStyle, EmojiClickData } from "emoji-picker-react";
 import PlanIndicator from "@/components/PlanIndicator";
 import { canUseFeature, getCurrentSubscription, isTrialActive } from "@/services/subscription";
 import { supabase } from "@/integrations/supabase/client";
+import { ChatGiftItem } from "@/components/ChatGiftItem";
+import { GiftMessage } from "@/components/GiftMessage";
+import { ChatGiftButton } from "@/components/ChatGiftButton";
 
 interface Message {
   id: string;
   text: string;
   sender: "user" | "agent";
   timestamp: Date;
+  isGift?: boolean;
 }
 
 // URL do webhook n8n
@@ -280,7 +284,6 @@ const Chat = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
-          // Adicionar outros cabeçalhos aqui se necessário (autenticação, etc.)
         },
         body: JSON.stringify(requestBody)
       });
@@ -294,9 +297,13 @@ const Chat = () => {
       const responseData = await response.json();
       console.log("Resposta do n8n:", responseData);
       
-      // Retornar a mensagem da resposta
-      // Ajuste conforme a estrutura real da resposta do n8n
-      return responseData.reply || responseData.message || responseData.text || JSON.stringify(responseData);
+      // Extrair mensagem da IA do formato específico [{"output":"Mensagem"}]
+      if (Array.isArray(responseData) && responseData.length > 0 && responseData[0].hasOwnProperty("output")) {
+        return responseData[0].output;
+      } else {
+        console.error("Formato de resposta inesperado do n8n:", responseData);
+        return "Desculpe, recebi uma resposta em formato inesperado.";
+      }
     
     } catch (error) {
       console.error("Erro ao enviar mensagem para o n8n:", error);
@@ -440,12 +447,13 @@ const Chat = () => {
         description: `Você comprou ${gift.name} por R$${gift.price}`,
       });
       
-      // Send the gift as a message
+      // Send the gift as a message - now only showing the emoji
       const giftMessage: Message = {
         id: Date.now().toString(),
-        text: `${gift.emoji} [Presente: ${gift.name}]`,
+        text: gift.emoji,
         sender: "user",
         timestamp: new Date(),
+        isGift: true
       };
       
       setMessages((prev) => [...prev, giftMessage]);
@@ -582,22 +590,28 @@ const Chat = () => {
                   />
                 </Avatar>
               )}
-              <div
-                className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                  message.sender === "user"
-                    ? "bg-purple-600 text-white"
-                    : "bg-white text-gray-800 border border-gray-200"
-                }`}
-              >
-                <p>{message.text}</p>
-                <p
-                  className={`text-xs mt-1 text-right ${
-                    message.sender === "user" ? "text-purple-100" : "text-gray-500"
+              
+              {/* Gift or regular message */}
+              {message.isGift ? (
+                <ChatGiftItem emoji={message.text} />
+              ) : (
+                <div
+                  className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                    message.sender === "user"
+                      ? "bg-purple-600 text-white"
+                      : "bg-white text-gray-800 border border-gray-200"
                   }`}
                 >
-                  {formatTime(message.timestamp)}
-                </p>
-              </div>
+                  <p>{message.text}</p>
+                  <p
+                    className={`text-xs mt-1 text-right ${
+                      message.sender === "user" ? "text-purple-100" : "text-gray-500"
+                    }`}
+                  >
+                    {formatTime(message.timestamp)}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
           
