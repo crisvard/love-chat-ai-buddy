@@ -20,6 +20,9 @@ interface Message {
   timestamp: Date;
 }
 
+// URL do webhook n8n
+const N8N_WEBHOOK_URL = "https://sps4frdfsdf.app.n8n.cloud/webhook/d9739-ohasd-5-pijasd54-asd42";
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -28,6 +31,7 @@ const Chat = () => {
   const [showGiftMenu, setShowGiftMenu] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [featureNeeded, setFeatureNeeded] = useState<"audio" | "voice" | "video" | null>(null);
+  const [isAgentTyping, setIsAgentTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
@@ -258,6 +262,47 @@ const Chat = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Função para enviar a mensagem para o webhook n8n e processar a resposta
+  const sendMessageToN8n = async (messageText: string): Promise<string> => {
+    try {
+      // Preparar o corpo da requisição
+      const requestBody = {
+        message: messageText,
+        user_id: currentUser?.id || "guest",
+        session_id: `chat-${Date.now()}`  // Simples geração de ID de sessão
+      };
+
+      console.log("Enviando mensagem para o n8n:", requestBody);
+
+      // Fazer a requisição POST para o webhook do n8n
+      const response = await fetch(N8N_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+          // Adicionar outros cabeçalhos aqui se necessário (autenticação, etc.)
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      // Verificar se a requisição foi bem-sucedida
+      if (!response.ok) {
+        throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+      }
+
+      // Extrair a resposta
+      const responseData = await response.json();
+      console.log("Resposta do n8n:", responseData);
+      
+      // Retornar a mensagem da resposta
+      // Ajuste conforme a estrutura real da resposta do n8n
+      return responseData.reply || responseData.message || responseData.text || JSON.stringify(responseData);
+    
+    } catch (error) {
+      console.error("Erro ao enviar mensagem para o n8n:", error);
+      throw error;
+    }
+  };
   
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -280,26 +325,45 @@ const Chat = () => {
     setMessages((prev) => [...prev, userMessage]);
     setNewMessage("");
     
-    // Simular resposta do agente após um breve intervalo
-    setTimeout(() => {
-      const agentResponses = [
-        "Que bom ouvir de você! Como foi seu dia hoje?",
-        "Estou pensando em você... Me conte mais sobre o seu dia!",
-        "Senti sua falta! O que você tem feito?",
-        "Adoro quando conversamos. Me conta uma coisa boa que aconteceu hoje!",
-      ];
+    // Mostrar indicador de "digitando..."
+    setIsAgentTyping(true);
+    
+    try {
+      // Enviar mensagem para o webhook n8n
+      const agentResponse = await sendMessageToN8n(userMessage.text);
       
-      const randomResponse = agentResponses[Math.floor(Math.random() * agentResponses.length)];
-      
+      // Adicionar a resposta do agente
       const agentMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: randomResponse,
+        text: agentResponse,
         sender: "agent",
         timestamp: new Date(),
       };
       
       setMessages((prev) => [...prev, agentMessage]);
-    }, 1000);
+    } catch (error) {
+      console.error("Erro ao processar resposta do n8n:", error);
+      
+      // Mostrar mensagem de erro no chat
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "Desculpe, não consegui obter uma resposta no momento. Tente novamente.",
+        sender: "agent",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, errorMessage]);
+      
+      // Mostrar toast de erro
+      toast({
+        title: "Erro de comunicação",
+        description: "Não foi possível obter a resposta do assistente virtual.",
+        variant: "destructive",
+      });
+    } finally {
+      // Esconder indicador de "digitando..."
+      setIsAgentTyping(false);
+    }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -536,6 +600,27 @@ const Chat = () => {
               </div>
             </div>
           ))}
+          
+          {/* Indicador de "digitando..." */}
+          {isAgentTyping && (
+            <div className="flex justify-start">
+              <Avatar className="h-8 w-8 mr-2 self-end">
+                <img
+                  src={agent.avatar}
+                  alt={agent.name}
+                  className="object-cover"
+                />
+              </Avatar>
+              <div className="bg-white text-gray-800 border border-gray-200 rounded-lg px-4 py-2">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0s" }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
       </div>
