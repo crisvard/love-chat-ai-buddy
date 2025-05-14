@@ -41,28 +41,32 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         const { data, error } = await supabase
           .from('plans')
           .select('*')
-          .eq('is_active', true)
+          .eq('is_active', true as unknown as boolean)
           .order('display_order', { ascending: true });
           
         if (error) throw error;
         
-        // Convert to expected format
-        const plans = data.map(plan => ({
-          id: plan.id,
-          name: plan.name,
-          price: plan.price.toString(),
-          features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : []
-        }));
-        
-        // Filter to only show plans that are more expensive than current plan
-        const planOrder = ["free", "basic", "intermediate", "premium", "admin"];
-        const currentPlanIndex = planOrder.indexOf(currentPlanId);
-        
-        const upgrades = plans.filter((plan: Plan) => 
-          planOrder.indexOf(plan.id) > currentPlanIndex && plan.id !== 'admin'
-        );
-        
-        setAvailableUpgrades(upgrades);
+        if (data && Array.isArray(data)) {
+          // Convert to expected format
+          const plans = data.map(plan => ({
+            id: plan.id,
+            name: plan.name,
+            price: plan.price.toString(),
+            features: Array.isArray(plan.features) 
+              ? (plan.features as unknown as string[]).map(f => String(f)) 
+              : []
+          }));
+          
+          // Filter to only show plans that are more expensive than current plan
+          const planOrder = ["free", "basic", "intermediate", "premium", "admin"];
+          const currentPlanIndex = planOrder.indexOf(currentPlanId);
+          
+          const upgrades = plans.filter((plan: Plan) => 
+            planOrder.indexOf(plan.id) > currentPlanIndex && plan.id !== 'admin'
+          );
+          
+          setAvailableUpgrades(upgrades);
+        }
       } catch (error) {
         console.error("Error fetching plans:", error);
         

@@ -128,14 +128,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: selectedAgentData, error: agentError } = await supabase
         .from('user_selected_agent')
         .select('nickname, ai_agents!selected_agent_id(*)')
-        .eq('user_id', userId)
+        .eq('user_id', userId as unknown as string)
         .single();
         
-      if (!agentError && selectedAgentData) {
+      if (!agentError && selectedAgentData && selectedAgentData.ai_agents) {
         const agentData = {
-          id: selectedAgentData.ai_agents?.id || '',
-          name: selectedAgentData.ai_agents?.name || '',
-          image: selectedAgentData.ai_agents?.image || '',
+          id: selectedAgentData.ai_agents.id || '',
+          name: selectedAgentData.ai_agents.name || '',
+          image: selectedAgentData.ai_agents.image || '',
           nickname: selectedAgentData.nickname
         };
         localStorage.setItem("selectedAgent", JSON.stringify(agentData));
@@ -147,14 +147,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: legacyData, error: legacyError } = await supabase
         .from('user_agent_selections')
         .select('nickname, agents(*)')
-        .eq('user_id', userId)
+        .eq('user_id', userId as unknown as string)
         .single();
         
-      if (!legacyError && legacyData) {
+      if (!legacyError && legacyData && legacyData.agents) {
         const agentData = {
-          id: legacyData.agents?.id || '',
-          name: legacyData.agents?.name || '',
-          image: legacyData.agents?.image || '',
+          id: legacyData.agents.id || '',
+          name: legacyData.agents.name || '',
+          image: legacyData.agents.image || '',
           nickname: legacyData.nickname
         };
         localStorage.setItem("selectedAgent", JSON.stringify(agentData));

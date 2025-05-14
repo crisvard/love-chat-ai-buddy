@@ -64,7 +64,7 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
           const { data: subsData, error: subsError } = await supabase
             .from('user_subscriptions')
             .select('*')
-            .eq('user_id', data.user.id)
+            .eq('user_id', data.user?.id)
             .eq('plan_id', 'admin')
             .maybeSingle();
             
@@ -72,7 +72,7 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
             console.error("Erro ao verificar plano de administrador:", subsError);
           }
           
-          if (!subsData) {
+          if (!subsData && data.user?.id) {
             console.log("Criando plano de administrador para o usuário");
             const { error: insertError } = await supabase
               .from('user_subscriptions')
