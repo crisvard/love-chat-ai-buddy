@@ -1,7 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
-import { getFromCache, saveToCache } from "@/utils/cacheUtils";
+import { getFromCache, saveToCache, clearCacheItem, clearCache } from "@/utils/cacheUtils";
 
 export interface Subscription {
   id: string;
