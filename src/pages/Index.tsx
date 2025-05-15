@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentSubscription, isTrialActive } from "@/services/subscription";
+import { getCurrentSubscription, isTrialActive, createSubscriptionCheckout, openCustomerPortal } from "@/services/subscription";
 import { toast } from "@/components/ui/use-toast";
 
 interface Plan {
@@ -27,6 +27,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   
   useEffect(() => {
     // Fetch plans from Supabase
@@ -136,19 +137,70 @@ const Index = () => {
     fetchUserSubscription();
   }, [currentUser]);
   
-  const handleAction = (planId: string, actionType: "primary" | "secondary") => {
-    if (currentUser) {
-      // Usuário já logado
-      if (planId === currentPlan) {
-        // Continuar com plano atual
-        navigate("/chat");
-      } else {
-        // Upgrade de plano
-        navigate("/personalize?upgrade=true&plan=" + planId);
-      }
-    } else {
+  const handleAction = async (planId: string, actionType: "primary" | "secondary") => {
+    if (!currentUser) {
       // Usuário não logado
       navigate("/cadastro");
+      return;
+    }
+    
+    // Usuário já logado
+    if (planId === currentPlan) {
+      // Continuar com plano atual
+      if (planId === "free") {
+        if (isTrialExpired) {
+          toast({
+            title: "Período de teste expirado",
+            description: "Por favor, escolha um plano pago para continuar.",
+          });
+        } else {
+          navigate("/chat");
+        }
+      } else {
+        // Usuário tem um plano pago atual
+        navigate("/chat");
+      }
+    } else {
+      // Upgrade de plano - criar checkout
+      try {
+        setCheckoutLoading(planId);
+        const checkout = await createSubscriptionCheckout(planId);
+        setCheckoutLoading(null);
+        
+        if (checkout && checkout.url) {
+          // Redirecionar para o checkout do Stripe
+          window.location.href = checkout.url;
+        }
+      } catch (error) {
+        setCheckoutLoading(null);
+        console.error("Error creating subscription checkout:", error);
+        toast({
+          title: "Erro ao criar checkout",
+          description: "Não foi possível iniciar o processo de assinatura. Por favor, tente novamente.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      setCheckoutLoading("manage");
+      const portal = await openCustomerPortal();
+      setCheckoutLoading(null);
+      
+      if (portal && portal.url) {
+        // Redirecionar para o portal do cliente
+        window.location.href = portal.url;
+      }
+    } catch (error) {
+      setCheckoutLoading(null);
+      console.error("Error opening customer portal:", error);
+      toast({
+        title: "Erro ao abrir portal",
+        description: "Não foi possível abrir o portal de gerenciamento de assinatura.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -166,12 +218,24 @@ const Index = () => {
         {currentUser && (
           <div className="mt-6 text-center">
             {!isTrialExpired || currentPlan !== "free" ? (
-              <Button 
-                onClick={() => navigate("/chat")}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                Continuar com {plans.find(p => p.id === currentPlan)?.name || "seu plano"} e ir para o chat
-              </Button>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+                <Button 
+                  onClick={() => navigate("/chat")}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  Continuar com {plans.find(p => p.id === currentPlan)?.name || "seu plano"} e ir para o chat
+                </Button>
+                
+                {currentPlan !== "free" && currentPlan !== "admin" && (
+                  <Button 
+                    onClick={handleManageSubscription}
+                    variant="outline"
+                    disabled={checkoutLoading === "manage"}
+                  >
+                    {checkoutLoading === "manage" ? "Carregando..." : "Gerenciar assinatura"}
+                  </Button>
+                )}
+              </div>
             ) : (
               <Button 
                 onClick={() => navigate("/personalize")}
@@ -254,15 +318,19 @@ const Index = () => {
                     onClick={() => handleAction(plan.id, "primary")}
                     className="w-full"
                     variant={plan.id === "premium" ? "default" : "outline"}
-                    disabled={currentUser && plan.id === currentPlan && isTrialExpired}
+                    disabled={(currentUser && plan.id === currentPlan && isTrialExpired) || checkoutLoading === plan.id}
                   >
-                    {currentUser
-                      ? plan.id === currentPlan
-                        ? isTrialExpired && plan.id === "free"
-                          ? "Período de teste expirado"
-                          : "Continuar com este plano"
-                        : "Fazer upgrade"
-                      : plan.primaryAction}
+                    {checkoutLoading === plan.id ? (
+                      "Processando..."
+                    ) : (
+                      currentUser
+                        ? plan.id === currentPlan
+                          ? isTrialExpired && plan.id === "free"
+                            ? "Período de teste expirado"
+                            : "Continuar com este plano"
+                          : "Fazer upgrade"
+                        : plan.primaryAction
+                    )}
                   </Button>
                 </CardFooter>
               </Card>

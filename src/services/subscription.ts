@@ -1,6 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { getFromCache, saveToCache, clearCacheItem, clearCache } from "@/utils/cacheUtils";
+import { toast } from "@/components/ui/use-toast";
 
 export interface Subscription {
   id: string;
@@ -103,97 +105,217 @@ export const isTrialActive = (endDate: Date | null): boolean => {
   return isActive;
 };
 
+// Function to check and update subscription status via Edge Function
+export const checkSubscription = async (): Promise<{planId: string, isActive: boolean, endDate: Date | null, status?: string}> => {
+  console.log("Checking subscription status via Edge Function");
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('check-subscription');
+    
+    if (error) {
+      console.error("Error checking subscription via Edge Function:", error);
+      throw new Error(error.message);
+    }
+    
+    console.log("Subscription check result:", data);
+    
+    // Clear cache and save new data
+    clearCacheItem(CACHE_KEYS.CURRENT_SUBSCRIPTION);
+    
+    const result = {
+      planId: data.planId,
+      isActive: data.isActive,
+      endDate: data.endDate ? new Date(data.endDate) : null,
+      status: data.status
+    };
+    
+    saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
+    return result;
+  } catch (error) {
+    console.error("Error in checkSubscription:", error);
+    
+    // Try to use cached data if available
+    const cachedSubscription = getFromCache<{planId: string, isActive: boolean, endDate: Date | null}>(CACHE_KEYS.CURRENT_SUBSCRIPTION);
+    if (cachedSubscription) {
+      console.log("Using cached subscription data after error", cachedSubscription);
+      return cachedSubscription;
+    }
+    
+    // Default fallback
+    return { planId: "free", isActive: false, endDate: null };
+  }
+};
+
 // Get the current user's subscription from Supabase
 export const getCurrentSubscription = async (): Promise<{planId: string, endDate: Date | null}> => {
   console.log("Getting current subscription");
   
-  // Check cache first
-  const cachedSubscription = getFromCache<{planId: string, endDate: Date | null}>(CACHE_KEYS.CURRENT_SUBSCRIPTION);
-  if (cachedSubscription) {
-    console.log("Using cached subscription data", cachedSubscription);
-    return cachedSubscription;
-  }
-  
-  // First check if user is authenticated
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (session?.user) {
-    try {
-      console.log("User session found:", session.user.id);
-      
-      // Verificar se o usuário é admin através da função is_admin()
-      const { data: isAdminData, error: isAdminError } = await supabase
-        .rpc('is_admin');
+  try {
+    // Try to get updated subscription from Edge Function first
+    const subscription = await checkSubscription();
+    return {
+      planId: subscription.planId,
+      endDate: subscription.endDate
+    };
+  } catch (error) {
+    console.error("Error checking subscription, falling back to local data:", error);
+    
+    // Check cache 
+    const cachedSubscription = getFromCache<{planId: string, endDate: Date | null}>(CACHE_KEYS.CURRENT_SUBSCRIPTION);
+    if (cachedSubscription) {
+      console.log("Using cached subscription data", cachedSubscription);
+      return cachedSubscription;
+    }
+    
+    // Original fallback methods
+    // First check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      try {
+        console.log("User session found:", session.user.id);
         
-      if (!isAdminError && isAdminData === true) {
-        console.log("User is admin via is_admin() function");
-        const result = { planId: "admin", endDate: null };
-        saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
-        return result;
-      }
-      
-      // Se não for admin, verificar assinatura normal
-      const { data, error } = await supabase
-        .from('user_subscriptions')
-        .select('plan_id, end_date')
-        .eq('user_id', session.user.id)
-        .eq('is_active', true)
-        .maybeSingle();
-        
-      if (error) {
-        console.error("Error fetching subscription from DB:", error);
-        // Specifically check for admin users via email
-        if (session.user.email === "armempires@gmail.com" || session.user.email === "admin@example.com") {
-          console.log("Admin user detected via email, returning admin plan");
+        // Verificar se o usuário é admin através da função is_admin()
+        const { data: isAdminData, error: isAdminError } = await supabase
+          .rpc('is_admin');
+          
+        if (!isAdminError && isAdminData === true) {
+          console.log("User is admin via is_admin() function");
           const result = { planId: "admin", endDate: null };
           saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
           return result;
         }
-        // For other users, fallback to localStorage or default
-      } else if (data) {
-        console.log("Subscription data from DB:", data);
+        
+        // Se não for admin, verificar assinatura normal
+        const { data, error } = await supabase
+          .from('user_subscriptions')
+          .select('plan_id, end_date')
+          .eq('user_id', session.user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+          
+        if (error) {
+          console.error("Error fetching subscription from DB:", error);
+          // Specifically check for admin users via email
+          if (session.user.email === "armempires@gmail.com" || session.user.email === "admin@example.com") {
+            console.log("Admin user detected via email, returning admin plan");
+            const result = { planId: "admin", endDate: null };
+            saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
+            return result;
+          }
+          // For other users, fallback to localStorage or default
+        } else if (data) {
+          console.log("Subscription data from DB:", data);
+          const result = { 
+            planId: data.plan_id, 
+            endDate: data.end_date ? new Date(data.end_date) : null
+          };
+          saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
+          return result;
+        }
+      } catch (error) {
+        console.error("Error in getCurrentSubscription:", error);
+      }
+    } else {
+      console.log("No user session found, checking localStorage");
+    }
+    
+    // Fallback to localStorage for backwards compatibility
+    const storedSubscription = localStorage.getItem("userSubscription");
+    
+    if (storedSubscription) {
+      try {
+        console.log("Found stored subscription in localStorage");
+        const subscription = JSON.parse(storedSubscription);
         const result = { 
-          planId: data.plan_id, 
-          endDate: data.end_date ? new Date(data.end_date) : null
+          planId: subscription.plan_id, 
+          endDate: subscription.end_date ? new Date(subscription.end_date) : null
         };
         saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
         return result;
+      } catch (error) {
+        console.error("Error parsing subscription data:", error);
       }
-    } catch (error) {
-      console.error("Error in getCurrentSubscription:", error);
+    } else {
+      console.log("No stored subscription in localStorage");
     }
-  } else {
-    console.log("No user session found, checking localStorage");
+    
+    // Default to free trial if no subscription is found
+    console.log("Defaulting to free trial");
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 3); // 3 day trial
+    
+    const result = { planId: "free", endDate: trialEndDate };
+    saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
+    return result;
   }
-  
-  // Fallback to localStorage for backwards compatibility
-  const storedSubscription = localStorage.getItem("userSubscription");
-  
-  if (storedSubscription) {
-    try {
-      console.log("Found stored subscription in localStorage");
-      const subscription = JSON.parse(storedSubscription);
-      const result = { 
-        planId: subscription.plan_id, 
-        endDate: subscription.end_date ? new Date(subscription.end_date) : null
-      };
-      saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
-      return result;
-    } catch (error) {
-      console.error("Error parsing subscription data:", error);
+};
+
+// Create subscription checkout session via Edge Function
+export const createSubscriptionCheckout = async (planId: string): Promise<{url: string, sessionId: string} | null> => {
+  try {
+    console.log(`Creating subscription checkout for plan: ${planId}`);
+    
+    const { data, error } = await supabase.functions.invoke('create-subscription', {
+      body: { planId }
+    });
+    
+    if (error) {
+      console.error("Error creating subscription checkout:", error);
+      toast({
+        title: "Erro ao criar checkout",
+        description: "Não foi possível iniciar o processo de assinatura. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+      return null;
     }
-  } else {
-    console.log("No stored subscription in localStorage");
+    
+    console.log("Checkout session created:", data);
+    return {
+      url: data.url,
+      sessionId: data.sessionId
+    };
+  } catch (error) {
+    console.error("Exception in createSubscriptionCheckout:", error);
+    toast({
+      title: "Erro inesperado",
+      description: "Ocorreu um erro ao processar sua solicitação de assinatura.",
+      variant: "destructive"
+    });
+    return null;
   }
-  
-  // Default to free trial if no subscription is found
-  console.log("Defaulting to free trial");
-  const trialEndDate = new Date();
-  trialEndDate.setDate(trialEndDate.getDate() + 3); // 3 day trial
-  
-  const result = { planId: "free", endDate: trialEndDate };
-  saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
-  return result;
+};
+
+// Open customer portal via Edge Function
+export const openCustomerPortal = async (): Promise<{url: string} | null> => {
+  try {
+    console.log("Opening customer portal");
+    
+    const { data, error } = await supabase.functions.invoke('customer-portal');
+    
+    if (error) {
+      console.error("Error opening customer portal:", error);
+      toast({
+        title: "Erro ao abrir portal",
+        description: "Não foi possível abrir o portal de gerenciamento de assinatura. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+      return null;
+    }
+    
+    console.log("Customer portal session created:", data);
+    return {
+      url: data.url
+    };
+  } catch (error) {
+    console.error("Exception in openCustomerPortal:", error);
+    toast({
+      title: "Erro inesperado",
+      description: "Ocorreu um erro ao processar sua solicitação.",
+      variant: "destructive"
+    });
+    return null;
+  }
 };
 
 // Function to update subscription in Supabase

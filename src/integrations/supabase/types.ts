@@ -71,6 +71,9 @@ export type Database = {
           is_active: boolean | null
           name: string
           price: number
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -79,6 +82,9 @@ export type Database = {
           is_active?: boolean | null
           name: string
           price: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -87,6 +93,9 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           price?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -100,6 +109,8 @@ export type Database = {
           is_active: boolean | null
           name: string
           price: number
+          stripe_price_id: string | null
+          stripe_product_id: string | null
         }
         Insert: {
           description?: string | null
@@ -110,6 +121,8 @@ export type Database = {
           is_active?: boolean | null
           name: string
           price: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
         }
         Update: {
           description?: string | null
@@ -120,6 +133,8 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           price?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
         }
         Relationships: []
       }
@@ -131,6 +146,7 @@ export type Database = {
           id: string
           is_adult: boolean
           name: string
+          stripe_customer_id: string | null
           terms_accepted: boolean
         }
         Insert: {
@@ -140,6 +156,7 @@ export type Database = {
           id: string
           is_adult?: boolean
           name: string
+          stripe_customer_id?: string | null
           terms_accepted?: boolean
         }
         Update: {
@@ -149,6 +166,7 @@ export type Database = {
           id?: string
           is_adult?: boolean
           name?: string
+          stripe_customer_id?: string | null
           terms_accepted?: boolean
         }
         Relationships: []
@@ -273,31 +291,46 @@ export type Database = {
       user_subscriptions: {
         Row: {
           created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
           end_date: string | null
           id: string
           is_active: boolean
           plan_id: string
           start_date: string
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           end_date?: string | null
           id?: string
           is_active?: boolean
           plan_id: string
           start_date?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           end_date?: string | null
           id?: string
           is_active?: boolean
           plan_id?: string
           start_date?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }

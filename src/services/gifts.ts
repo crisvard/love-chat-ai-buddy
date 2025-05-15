@@ -71,6 +71,41 @@ export const fetchActiveGifts = async (): Promise<Gift[]> => {
   }
 };
 
+// Criar sessão de checkout para compra de gift
+export const createGiftCheckout = async (giftId: string, quantity: number = 1): Promise<{url: string, sessionId: string} | null> => {
+  try {
+    console.log(`Criando checkout para gift: ${giftId}, quantidade: ${quantity}`);
+    
+    const { data, error } = await supabase.functions.invoke('create-gift-payment', {
+      body: { giftId, quantity }
+    });
+    
+    if (error) {
+      console.error("Erro ao criar checkout para o presente:", error);
+      toast({
+        title: "Erro ao processar compra",
+        description: "Não foi possível iniciar o processo de compra. Por favor, tente novamente.",
+        variant: "destructive"
+      });
+      return null;
+    }
+    
+    console.log("Sessão de checkout criada:", data);
+    return {
+      url: data.url,
+      sessionId: data.sessionId
+    };
+  } catch (error) {
+    console.error("Exceção em createGiftCheckout:", error);
+    toast({
+      title: "Erro inesperado",
+      description: "Ocorreu um erro ao processar sua solicitação de compra.",
+      variant: "destructive"
+    });
+    return null;
+  }
+};
+
 // Comprar um gift e registrar na tabela user_purchased_gifts
 export const purchaseGift = async (giftId: string, price: number): Promise<UserPurchasedGift | null> => {
   try {
@@ -198,6 +233,20 @@ export const fetchUserPurchasedGifts = async (): Promise<UserPurchasedGift[]> =>
   }
 };
 
+// Verificar se uma compra de gift foi concluída
+export const verifyGiftPurchase = async (sessionId: string): Promise<UserPurchasedGift | null> => {
+  try {
+    console.log(`Verificando compra com sessionId: ${sessionId}`);
+    
+    // TODO: Implementar Edge Function para verificar o status da compra com o Stripe
+    // Por enquanto, só retornamos null
+    return null;
+  } catch (error) {
+    console.error("Error verifying gift purchase:", error);
+    return null;
+  }
+};
+
 // Marcar um gift como usado em uma mensagem específica
 export const markGiftAsUsed = async (giftPurchaseId: string, messageId: string): Promise<boolean> => {
   try {
@@ -222,3 +271,4 @@ export const markGiftAsUsed = async (giftPurchaseId: string, messageId: string):
     return false;
   }
 };
+
