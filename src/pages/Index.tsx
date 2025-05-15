@@ -169,7 +169,7 @@ const Index = () => {
         
         if (checkout && checkout.url) {
           // Redirecionar para o checkout do Stripe
-          window.location.href = checkout.url;
+          window.open(checkout.url, '_blank');
         }
       } catch (error) {
         setCheckoutLoading(null);
@@ -191,7 +191,7 @@ const Index = () => {
       
       if (portal && portal.url) {
         // Redirecionar para o portal do cliente
-        window.location.href = portal.url;
+        window.open(portal.url, '_blank');
       }
     } catch (error) {
       setCheckoutLoading(null);

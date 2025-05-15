@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Gift, fetchActiveGifts, purchaseGift } from "@/services/gifts";
+import { Gift, fetchActiveGifts, purchaseGift, createGiftCheckout } from "@/services/gifts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,6 +49,18 @@ export function GiftsModal({ isOpen, onClose, onGiftSelected }: GiftsModalProps)
     
     try {
       setPurchasing(true);
+      
+      // Usar o Stripe para compra
+      const checkout = await createGiftCheckout(selectedGift.id);
+      
+      if (checkout && checkout.url) {
+        // Abrir checkout em nova janela/aba
+        window.open(checkout.url, '_blank');
+        onClose();
+        return;
+      }
+      
+      // Fallback para compra direta no app (créditos)
       const giftPurchase = await purchaseGift(selectedGift.id, selectedGift.price);
       
       if (giftPurchase) {
