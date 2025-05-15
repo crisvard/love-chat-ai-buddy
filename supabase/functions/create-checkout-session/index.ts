@@ -108,15 +108,19 @@ serve(async (req) => {
     let priceId: string;
     
     if (item_type === 'plan') {
-      // Buscar plano
+      // Buscar plano no banco de dados
       const { data: planData, error: planError } = await supabaseAdmin
         .from("plans")
         .select("stripe_price_id, name")
         .eq("id", item_id)
         .single();
         
-      if (planError || !planData || !planData.stripe_price_id) {
-        throw new Error(`Erro ao buscar plano: ${planError?.message || "Plano não encontrado ou sem price_id"}`);
+      if (planError || !planData) {
+        throw new Error(`Erro ao buscar plano: ${planError?.message || "Plano não encontrado"}`);
+      }
+      
+      if (!planData.stripe_price_id) {
+        throw new Error(`O plano '${planData.name}' não possui um ID de preço do Stripe configurado`);
       }
       
       mode = 'subscription';
@@ -131,8 +135,12 @@ serve(async (req) => {
         .eq("id", item_id)
         .single();
         
-      if (giftError || !giftData || !giftData.stripe_price_id) {
-        throw new Error(`Erro ao buscar gift: ${giftError?.message || "Gift não encontrado ou sem price_id"}`);
+      if (giftError || !giftData) {
+        throw new Error(`Erro ao buscar gift: ${giftError?.message || "Gift não encontrado"}`);
+      }
+      
+      if (!giftData.stripe_price_id) {
+        throw new Error(`O gift '${giftData.name}' não possui um ID de preço do Stripe configurado`);
       }
       
       mode = 'payment';
