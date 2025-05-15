@@ -86,7 +86,29 @@ export const createGiftCheckout = async (giftId: string, quantity: number = 1): 
  * Abre a URL do checkout do Stripe
  */
 export const openCheckoutSession = (checkoutUrl: string) => {
+  if (!checkoutUrl) {
+    console.error("URL de checkout inválida");
+    toast({
+      title: "Erro de checkout",
+      description: "URL de checkout inválida. Tente novamente.",
+      variant: "destructive"
+    });
+    return false;
+  }
+  
   console.log(`Abrindo checkout do Stripe: ${checkoutUrl}`);
-  // Abrir em uma nova aba
-  window.open(checkoutUrl, '_blank');
+  
+  try {
+    // Abrir em uma nova aba
+    window.open(checkoutUrl, '_blank');
+    return true;
+  } catch (error) {
+    console.error("Erro ao abrir URL de checkout:", error);
+    toast({
+      title: "Erro de redirecionamento",
+      description: "Não foi possível abrir a página de checkout. Tente novamente.",
+      variant: "destructive"
+    });
+    return false;
+  }
 };
