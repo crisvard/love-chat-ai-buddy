@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getCurrentSubscription, createSubscriptionCheckout, setCurrentSubscription } from "@/services/subscription";
+import { getCurrentSubscription, setCurrentSubscription, openCustomerPortal } from "@/services/subscription";
+import { subscribeToPlan } from "@/services/checkout";
 import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
@@ -187,15 +188,14 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         // Force reload to reflect changes
         window.location.reload();
       } else {
-        // Criar checkout de assinatura para planos pagos
-        const checkout = await createSubscriptionCheckout(planId);
+        // Usar a função subscribeToPlan para criar checkout e redirecionar
+        const success = await subscribeToPlan(planId);
         
-        if (checkout && checkout.url) {
-          // Abrir checkout em nova janela/aba
-          window.open(checkout.url, '_blank');
-        } else {
-          throw new Error("Não foi possível criar a sessão de checkout");
+        if (!success) {
+          throw new Error("Não foi possível iniciar o processo de assinatura");
         }
+        
+        // O redirecionamento é feito pela função subscribeToPlan
       }
     } catch (error) {
       console.error("Error upgrading plan:", error);
