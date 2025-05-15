@@ -37,3 +37,4 @@ enabled = true
 [functions]
 [functions.stripe-webhook-handler]
 verify_jwt = false
+
