@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getCurrentSubscription, createSubscriptionCheckout } from "@/services/subscription";
+import { getCurrentSubscription, createSubscriptionCheckout, setCurrentSubscription } from "@/services/subscription";
 import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
