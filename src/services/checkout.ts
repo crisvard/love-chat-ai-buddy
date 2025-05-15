@@ -82,37 +82,57 @@ export const createCheckout = async (options: CheckoutOptions): Promise<string |
  * Cria um checkout para assinatura de plano
  */
 export const subscribeToPlan = async (planId: string): Promise<boolean> => {
-  const checkoutUrl = await createCheckout({
-    item_type: 'plan',
-    item_id: planId
-  });
-  
-  if (!checkoutUrl) {
+  try {
+    const checkoutUrl = await createCheckout({
+      item_type: 'plan',
+      item_id: planId
+    });
+    
+    if (!checkoutUrl) {
+      return false;
+    }
+    
+    // Redirecionar para checkout
+    window.open(checkoutUrl, '_blank');
+    return true;
+  } catch (error) {
+    console.error("Erro ao criar checkout para plano:", error);
+    toast({
+      title: "Erro ao processar assinatura",
+      description: "Ocorreu um erro ao criar a sessão de checkout para o plano selecionado.",
+      variant: "destructive"
+    });
     return false;
   }
-  
-  // Redirecionar para checkout
-  window.open(checkoutUrl, '_blank');
-  return true;
 };
 
 /**
  * Cria um checkout para compra de gift
  */
 export const purchaseGiftCheckout = async (giftId: string, quantity: number = 1): Promise<boolean> => {
-  const checkoutUrl = await createCheckout({
-    item_type: 'gift',
-    item_id: giftId,
-    quantity
-  });
-  
-  if (!checkoutUrl) {
+  try {
+    const checkoutUrl = await createCheckout({
+      item_type: 'gift',
+      item_id: giftId,
+      quantity
+    });
+    
+    if (!checkoutUrl) {
+      return false;
+    }
+    
+    // Redirecionar para checkout
+    window.open(checkoutUrl, '_blank');
+    return true;
+  } catch (error) {
+    console.error("Erro ao criar checkout para gift:", error);
+    toast({
+      title: "Erro ao processar compra",
+      description: "Ocorreu um erro ao criar a sessão de checkout para o presente selecionado.",
+      variant: "destructive"
+    });
     return false;
   }
-  
-  // Redirecionar para checkout
-  window.open(checkoutUrl, '_blank');
-  return true;
 };
 
 /**

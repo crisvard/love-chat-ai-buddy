@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { getCurrentSubscription, setCurrentSubscription, openCustomerPortal } from "@/services/subscription";
 import { subscribeToPlan } from "@/services/checkout";
-import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
   id: string;
@@ -194,6 +192,12 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         if (!success) {
           throw new Error("Não foi possível iniciar o processo de assinatura");
         }
+        
+        toast({
+          title: "Redirecionando para o checkout",
+          description: "Você será redirecionado para a página de pagamento do Stripe.",
+          variant: "success",
+        });
         
         // O redirecionamento é feito pela função subscribeToPlan
       }
