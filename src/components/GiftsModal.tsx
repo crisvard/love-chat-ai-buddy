@@ -50,7 +50,7 @@ export function GiftsModal({ isOpen, onClose, onGiftSelected }: GiftsModalProps)
     try {
       setPurchasing(true);
       
-      // Usar o Stripe para compra
+      // Primeiro tentar usar Stripe para checkout
       const checkout = await createGiftCheckout(selectedGift.id);
       
       if (checkout && checkout.url) {

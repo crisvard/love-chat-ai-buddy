@@ -3,12 +3,12 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Star, ArrowUp } from "lucide-react";
+import { Star, ArrowUp, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getCurrentSubscription, setCurrentSubscription } from "@/services/subscription";
+import { getCurrentSubscription, createSubscriptionCheckout } from "@/services/subscription";
 import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
@@ -32,6 +32,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
     planId: currentPlanId,
     endDate: trialEndsAt
   });
+  const [loading, setLoading] = useState<string | null>(null);
 
   // Load plans from Supabase
   useEffect(() => {
@@ -170,17 +171,32 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
     }
 
     try {
-      // Update user's subscription in Supabase
-      const endDate = planId === "free" ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) : null; // 3 days for free trial
-      await setCurrentSubscription(planId, endDate, currentUser.id);
-
-      toast({
-        title: "Plano atualizado!",
-        description: `Seu plano foi atualizado para ${planId}.`,
-      });
+      setLoading(planId);
       
-      // Force reload to reflect changes
-      window.location.reload();
+      // Para plano grátis, apenas atualizamos localmente
+      if (planId === "free") {
+        // Update user's subscription in Supabase
+        const endDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days for free trial
+        await setCurrentSubscription(planId, endDate, currentUser.id);
+
+        toast({
+          title: "Plano atualizado!",
+          description: `Seu plano foi atualizado para ${planId}.`,
+        });
+        
+        // Force reload to reflect changes
+        window.location.reload();
+      } else {
+        // Criar checkout de assinatura para planos pagos
+        const checkout = await createSubscriptionCheckout(planId);
+        
+        if (checkout && checkout.url) {
+          // Abrir checkout em nova janela/aba
+          window.open(checkout.url, '_blank');
+        } else {
+          throw new Error("Não foi possível criar a sessão de checkout");
+        }
+      }
     } catch (error) {
       console.error("Error upgrading plan:", error);
       toast({
@@ -188,6 +204,8 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         description: "Ocorreu um erro ao atualizar seu plano. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -231,8 +249,17 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
                           <p className="font-medium">{plan.name}</p>
                           <p className="text-sm text-gray-500">R${plan.price}/mês</p>
                         </div>
-                        <Button size="sm" onClick={() => handleUpgrade(plan.id)}>
-                          <ArrowUp className="h-4 w-4 mr-1" /> Upgrade
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleUpgrade(plan.id)}
+                          disabled={loading === plan.id}
+                        >
+                          {loading === plan.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <ArrowUp className="h-4 w-4 mr-1" />
+                          )}
+                          Upgrade
                         </Button>
                       </div>
                     </div>

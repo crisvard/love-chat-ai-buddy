@@ -88,7 +88,7 @@ serve(async (req) => {
           );
           
           // Buscar o ID do plano a partir dos metadados
-          const planId = metadata.plan_id;
+          const planId = metadata.item_id;
           if (!planId) {
             throw new Error("ID do plano não encontrado nos metadados");
           }
@@ -118,7 +118,7 @@ serve(async (req) => {
           }
           
           // Buscar o ID do gift a partir dos metadados
-          const giftId = metadata.gift_id;
+          const giftId = metadata.item_id;
           const quantity = parseInt(metadata.quantity || "1");
           
           if (!giftId) {
@@ -261,6 +261,186 @@ serve(async (req) => {
           .eq("stripe_subscription_id", subscriptionId);
           
         logStep("Status da assinatura atualizado para past_due", { subscriptionId });
+        break;
+      }
+      
+      // Novo: Assinatura criada
+      case "customer.subscription.created": {
+        logStep("Assinatura criada");
+        
+        const subscription = data as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Buscar o usuário pelo customer_id
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("stripe_customer_id", customerId);
+          
+        if (!profiles || profiles.length === 0) {
+          logStep("Usuário não encontrado para o customer_id", { customerId });
+          break;
+        }
+        
+        const userId = profiles[0].id;
+        
+        // Determinar o plano pelo produto/preço
+        const items = subscription.items.data;
+        if (items.length === 0) {
+          logStep("Assinatura sem itens", { subscriptionId: subscription.id });
+          break;
+        }
+        
+        const priceId = items[0].price.id;
+        
+        // Buscar plano pelo price_id
+        const { data: plans } = await supabaseAdmin
+          .from("plans")
+          .select("*")
+          .eq("stripe_price_id", priceId);
+          
+        if (!plans || plans.length === 0) {
+          logStep("Plano não encontrado para o price_id", { priceId });
+          break;
+        }
+        
+        const planId = plans[0].id;
+        
+        // Criar/atualizar o registro da assinatura (upsert para garantir idempotência)
+        await supabaseAdmin.from("user_subscriptions").upsert({
+          user_id: userId,
+          plan_id: planId,
+          stripe_subscription_id: subscription.id,
+          stripe_customer_id: customerId,
+          status: subscription.status,
+          is_active: subscription.status === "active" || subscription.status === "trialing",
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          end_date: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,stripe_subscription_id'
+        });
+        
+        logStep("Assinatura registrada/atualizada no banco", { subscriptionId: subscription.id, planId });
+        break;
+      }
+      
+      // Novo: Notificação de término de período trial
+      case "customer.subscription.trial_will_end": {
+        logStep("Período de teste da assinatura terminará em breve");
+        
+        const subscription = data as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Buscar o usuário pelo customer_id
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, email, name")
+          .eq("stripe_customer_id", customerId);
+          
+        if (!profiles || profiles.length === 0) {
+          logStep("Usuário não encontrado para o customer_id", { customerId });
+          break;
+        }
+        
+        const userId = profiles[0].id;
+        const userEmail = profiles[0].email;
+        const userName = profiles[0].name;
+        
+        // Aqui você implementaria o envio de email ou notificação
+        logStep("Notificar usuário sobre fim do período de teste", { 
+          userId, 
+          userEmail,
+          trialEnd: new Date(subscription.trial_end! * 1000).toISOString()
+        });
+        
+        // TODO: Implementar lógica de notificação
+        // Exemplo de como seria salvar uma notificação no banco:
+        // await supabaseAdmin.from('notifications').insert({
+        //   user_id: userId,
+        //   type: 'trial_ending',
+        //   title: 'Seu período de teste está terminando',
+        //   body: `Olá ${userName}, seu período de teste termina em ${new Date(subscription.trial_end! * 1000).toLocaleDateString()}.`,
+        //   is_read: false,
+        //   created_at: new Date().toISOString()
+        // });
+        
+        break;
+      }
+      
+      // Novo: Fatura criada
+      case "invoice.created": {
+        logStep("Fatura criada");
+        // Geralmente apenas confirmar recebimento é suficiente
+        // No entanto, você poderia salvar informações da fatura para referência futura
+        break;
+      }
+      
+      // Novo: Fatura finalizada
+      case "invoice.finalized": {
+        logStep("Fatura finalizada");
+        
+        const invoice = data as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        
+        // Buscar o usuário pelo customer_id
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, email")
+          .eq("stripe_customer_id", customerId);
+          
+        if (!profiles || profiles.length === 0) {
+          logStep("Usuário não encontrado para o customer_id", { customerId });
+          break;
+        }
+        
+        const userId = profiles[0].id;
+        const userEmail = profiles[0].email;
+        
+        // Aqui você implementaria o envio da fatura por email
+        logStep("Fatura finalizada para usuário", { 
+          userId, 
+          userEmail,
+          invoiceId: invoice.id,
+          amount: invoice.total / 100
+        });
+        
+        // TODO: Implementar envio de fatura
+        break;
+      }
+      
+      // Novo: Notificação de fatura próxima
+      case "invoice.upcoming": {
+        logStep("Fatura próxima");
+        
+        const invoice = data as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        
+        // Buscar o usuário pelo customer_id
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, email, name")
+          .eq("stripe_customer_id", customerId);
+          
+        if (!profiles || profiles.length === 0) {
+          logStep("Usuário não encontrado para o customer_id", { customerId });
+          break;
+        }
+        
+        const userId = profiles[0].id;
+        const userEmail = profiles[0].email;
+        const userName = profiles[0].name;
+        
+        // Aqui você implementaria o envio de notificação sobre a fatura próxima
+        logStep("Notificar usuário sobre fatura próxima", { 
+          userId, 
+          userEmail,
+          invoiceDate: invoice.created ? new Date(invoice.created * 1000).toISOString() : null,
+          amount: invoice.total ? invoice.total / 100 : null
+        });
+        
+        // TODO: Implementar lógica de notificação
         break;
       }
       

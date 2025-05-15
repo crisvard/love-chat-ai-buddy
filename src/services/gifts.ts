@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { getFromCache, saveToCache, clearCacheItem } from "@/utils/cacheUtils";
+import { createCheckout, CheckoutOptions } from "./checkout";
 
 export interface Gift {
   id: string;
@@ -76,24 +77,23 @@ export const createGiftCheckout = async (giftId: string, quantity: number = 1): 
   try {
     console.log(`Criando checkout para gift: ${giftId}, quantidade: ${quantity}`);
     
-    const { data, error } = await supabase.functions.invoke('create-gift-payment', {
-      body: { giftId, quantity }
+    const checkoutUrl = await createCheckout({
+      item_type: 'gift',
+      item_id: giftId,
+      quantity
     });
     
-    if (error) {
-      console.error("Erro ao criar checkout para o presente:", error);
-      toast({
-        title: "Erro ao processar compra",
-        description: "Não foi possível iniciar o processo de compra. Por favor, tente novamente.",
-        variant: "destructive"
-      });
+    if (!checkoutUrl) {
       return null;
     }
     
-    console.log("Sessão de checkout criada:", data);
+    // Extrair session_id da URL se estiver presente
+    const url = new URL(checkoutUrl);
+    const sessionId = url.searchParams.get('session_id') || '';
+    
     return {
-      url: data.url,
-      sessionId: data.sessionId
+      url: checkoutUrl,
+      sessionId: sessionId
     };
   } catch (error) {
     console.error("Exceção em createGiftCheckout:", error);

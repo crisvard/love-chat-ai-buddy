@@ -11,6 +11,8 @@ import Login from "./pages/Login";
 import Personalize from "./pages/Personalize";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancelled from "./pages/PaymentCancelled";
 import { AuthProvider } from "./context/AuthContext";
 import Cadastro from "./pages/Cadastro";
 
@@ -27,6 +29,8 @@ const AppRoutes = () => {
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/personalize" element={<Personalize />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/payment-cancelled" element={<PaymentCancelled />} />
         {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
