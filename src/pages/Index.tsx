@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
@@ -23,6 +23,7 @@ interface Plan {
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,6 +142,7 @@ const Index = () => {
   const handleAction = async (planId: string, actionType: "primary" | "secondary") => {
     if (!currentUser) {
       // Usuário não logado - redirecionar para cadastro com o plano selecionado
+      console.log("Redirecionando para cadastro com plano:", planId);
       navigate(`/cadastro?plan=${planId}`);
       return;
     }
@@ -167,6 +169,7 @@ const Index = () => {
         setCheckoutLoading(planId);
         
         // Usar a função subscribeToPlan para iniciar o checkout do Stripe
+        console.log("Iniciando checkout para plano:", planId);
         const success = await subscribeToPlan(planId);
         
         if (!success) {

@@ -67,6 +67,7 @@ export function GiftsModal({ isOpen, onClose, onGiftSelected }: GiftsModalProps)
     setPurchasingGiftId(gift.id);
     
     try {
+      console.log("Iniciando checkout para gift:", gift.id);
       const success = await purchaseGiftCheckout(gift.id);
       
       if (!success) {

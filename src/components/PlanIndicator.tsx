@@ -188,6 +188,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         window.location.reload();
       } else {
         // Usar a função subscribeToPlan para criar checkout e redirecionar
+        console.log("Iniciando checkout para plano:", planId);
         const success = await subscribeToPlan(planId);
         
         if (!success) {
@@ -197,7 +198,6 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         toast({
           title: "Redirecionando para o checkout",
           description: "Você será redirecionado para a página de pagamento do Stripe.",
-          variant: "success",
         });
         
         // O redirecionamento é feito pela função subscribeToPlan

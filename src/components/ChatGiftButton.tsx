@@ -27,6 +27,7 @@ export function ChatGiftButton({ onGiftSelected }: ChatGiftButtonProps) {
       setIsLoading(true);
       
       // Use the purchaseGiftCheckout function to initiate the checkout process
+      console.log("Iniciando checkout para gift:", gift.id);
       const success = await purchaseGiftCheckout(gift.id);
       
       if (success) {
@@ -35,6 +36,8 @@ export function ChatGiftButton({ onGiftSelected }: ChatGiftButtonProps) {
           description: "Você foi redirecionado para a página de pagamento do Stripe.",
           variant: "default"
         });
+      } else {
+        throw new Error("Não foi possível processar sua solicitação");
       }
       
       // Close the modal

@@ -93,6 +93,7 @@ export const subscribeToPlan = async (planId: string): Promise<boolean> => {
     }
     
     // Redirecionar para checkout
+    console.log("Redirecionando para checkout:", checkoutUrl);
     window.open(checkoutUrl, '_blank');
     return true;
   } catch (error) {
@@ -122,6 +123,7 @@ export const purchaseGiftCheckout = async (giftId: string, quantity: number = 1)
     }
     
     // Redirecionar para checkout
+    console.log("Redirecionando para checkout de gift:", checkoutUrl);
     window.open(checkoutUrl, '_blank');
     return true;
   } catch (error) {
