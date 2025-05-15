@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { getFromCache, saveToCache, clearCacheItem } from "@/utils/cacheUtils";
+import { createGiftCheckout } from "@/services/checkout";
 
 export interface Gift {
   id: string;
@@ -68,41 +69,6 @@ export const fetchActiveGifts = async (): Promise<Gift[]> => {
   } catch (error) {
     console.error("Error in fetchActiveGifts:", error);
     return [];
-  }
-};
-
-// Criar sessão de checkout para compra de gift
-export const createGiftCheckout = async (giftId: string, quantity: number = 1): Promise<{url: string, sessionId: string} | null> => {
-  try {
-    console.log(`Criando checkout para gift: ${giftId}, quantidade: ${quantity}`);
-    
-    const { data, error } = await supabase.functions.invoke('create-gift-payment', {
-      body: { giftId, quantity }
-    });
-    
-    if (error) {
-      console.error("Erro ao criar checkout para o presente:", error);
-      toast({
-        title: "Erro ao processar compra",
-        description: "Não foi possível iniciar o processo de compra. Por favor, tente novamente.",
-        variant: "destructive"
-      });
-      return null;
-    }
-    
-    console.log("Sessão de checkout criada:", data);
-    return {
-      url: data.url,
-      sessionId: data.sessionId
-    };
-  } catch (error) {
-    console.error("Exceção em createGiftCheckout:", error);
-    toast({
-      title: "Erro inesperado",
-      description: "Ocorreu um erro ao processar sua solicitação de compra.",
-      variant: "destructive"
-    });
-    return null;
   }
 };
 
@@ -271,4 +237,3 @@ export const markGiftAsUsed = async (giftPurchaseId: string, messageId: string):
     return false;
   }
 };
-
