@@ -8,7 +8,6 @@ import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { subscribeToPlan } from "@/services/checkout";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -131,7 +130,7 @@ const Signup = () => {
       });
       
       if (success) {
-        // Após o cadastro bem-sucedido, fazemos login automaticamente
+        // Após o cadastro bem-sucedido, fazemos login automaticamente e redirecionamos para /chat
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -144,24 +143,7 @@ const Signup = () => {
             description: "Por favor, faça login para continuar.",
           });
           navigate("/login");
-          return;
-        }
-        
-        // Se o plano selecionado não é o gratuito, redireciona para checkout do Stripe
-        if (selectedPlan !== "free") {
-          toast({
-            title: "Conta criada com sucesso!",
-            description: "Você será redirecionado para o checkout do plano selecionado.",
-          });
-          
-          const success = await subscribeToPlan(selectedPlan);
-          if (!success) {
-            // Se falhar o checkout, ainda redireciona para o chat com plano gratuito
-            navigate("/chat");
-          }
-          // O redirecionamento para o Stripe é feito pela função subscribeToPlan
         } else {
-          // Para plano gratuito, redireciona direto para o chat
           toast({
             title: "Conta criada com sucesso!",
             description: "Você será direcionado para o chat.",
@@ -171,11 +153,6 @@ const Signup = () => {
       }
     } catch (error) {
       console.error("Erro durante signup:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao criar conta",
-        description: "Ocorreu um erro ao criar sua conta. Tente novamente.",
-      });
     } finally {
       setIsSubmitting(false);
     }

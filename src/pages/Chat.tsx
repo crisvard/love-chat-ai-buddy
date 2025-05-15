@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
-import { Mic, MicOff, Send, Phone, Video, Image, Smile, Gift } from "lucide-react";
+import { Mic, MicOff, Send, Phone, Video, VideoOff, Image, Smile, Gift } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -14,8 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChatGiftItem } from "@/components/ChatGiftItem";
 import { GiftMessage } from "@/components/GiftMessage";
 import { ChatGiftButton } from "@/components/ChatGiftButton";
-import { GiftsModal } from "@/components/GiftsModal";
-import { fetchUserPurchasedGifts, markGiftAsUsed } from "@/services/gifts";
 
 interface Message {
   id: string;
@@ -435,33 +434,32 @@ const Chat = () => {
     setShowEmojiPicker(false);
   };
 
-  // Handle sending a gift
-  const handleGiftSelected = async (giftPurchase: any) => {
-    if (!currentUser) {
+  const handleGiftClick = (gift: {id: string, name: string, emoji: string, price: string}) => {
+    // Mock purchase flow - in a real app this would connect to payment processing
+    const confirmPurchase = window.confirm(
+      `Deseja comprar ${gift.name} por R$${gift.price}?`
+    );
+    
+    if (confirmPurchase) {
+      // Simulate successful purchase
       toast({
-        title: "Erro",
-        description: "Você precisa estar logado para enviar presentes.",
-        variant: "destructive",
+        title: "Compra realizada!",
+        description: `Você comprou ${gift.name} por R$${gift.price}`,
       });
-      return;
-    }
-  
-    try {
-      // Add gift message to chat
+      
+      // Send the gift as a message - now only showing the emoji
       const giftMessage: Message = {
         id: Date.now().toString(),
-        text: giftPurchase.gift?.emoji || "🎁",
+        text: gift.emoji,
         sender: "user",
         timestamp: new Date(),
         isGift: true
       };
       
       setMessages((prev) => [...prev, giftMessage]);
+      setShowGiftMenu(false);
       
-      // Mark the gift as used in the database
-      await markGiftAsUsed(giftPurchase.id, giftMessage.id);
-      
-      // Simulate agent response to the gift
+      // Simulate agent response
       setTimeout(() => {
         const agentResponses = [
           "Que presente lindo! Obrigado! ❤️",
@@ -481,21 +479,7 @@ const Chat = () => {
         
         setMessages((prev) => [...prev, agentMessage]);
       }, 1000);
-      
-    } catch (error) {
-      console.error("Error sending gift:", error);
-      toast({
-        title: "Erro ao enviar presente",
-        description: "Não foi possível enviar o presente. Tente novamente.",
-        variant: "destructive",
-      });
     }
-  };
-  
-  // Updated handleGiftClick function to use Stripe checkout
-  const handleGiftClick = (gift: {id: string, name: string, emoji: string, price: string}) => {
-    setShowGiftMenu(false);
-    navigate(`/gift/${gift.id}`);
   };
 
   const handleLogout = () => {
@@ -667,12 +651,25 @@ const Chat = () => {
         </div>
       )}
       
-      {/* Gift Menu/Modal */}
-      <GiftsModal
-        isOpen={showGiftMenu}
-        onClose={() => setShowGiftMenu(false)}
-        onGiftSelected={handleGiftSelected}
-      />
+      {/* Gift Menu */}
+      {showGiftMenu && (
+        <div className="absolute bottom-20 left-16 z-10 bg-white p-4 rounded-lg shadow-lg border">
+          <h3 className="font-bold mb-2">Presentes Premium</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {premiumGifts.map((gift) => (
+              <button
+                key={gift.id}
+                className="flex flex-col items-center p-2 border rounded hover:bg-purple-50"
+                onClick={() => handleGiftClick(gift)}
+              >
+                <span className="text-2xl mb-1">{gift.emoji}</span>
+                <span className="text-sm">{gift.name}</span>
+                <span className="text-xs text-gray-500">R${gift.price}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>

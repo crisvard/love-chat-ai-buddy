@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentSubscription, isTrialActive, openCustomerPortal } from "@/services/subscription";
-import { subscribeToPlan } from "@/services/checkout";
+import { getCurrentSubscription, isTrialActive, createSubscriptionCheckout, openCustomerPortal } from "@/services/subscription";
 import { toast } from "@/components/ui/use-toast";
 
 interface Plan {
@@ -23,7 +22,6 @@ interface Plan {
 
 const Index = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentUser } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,9 +139,8 @@ const Index = () => {
   
   const handleAction = async (planId: string, actionType: "primary" | "secondary") => {
     if (!currentUser) {
-      // Usuário não logado - redirecionar para cadastro com o plano selecionado
-      console.log("Redirecionando para cadastro com plano:", planId);
-      navigate(`/cadastro?plan=${planId}`);
+      // Usuário não logado
+      navigate("/cadastro");
       return;
     }
     
@@ -164,28 +161,24 @@ const Index = () => {
         navigate("/chat");
       }
     } else {
-      // Upgrade de plano - criar checkout com Stripe
+      // Upgrade de plano - criar checkout
       try {
         setCheckoutLoading(planId);
+        const checkout = await createSubscriptionCheckout(planId);
+        setCheckoutLoading(null);
         
-        // Usar a função subscribeToPlan para iniciar o checkout do Stripe
-        console.log("Iniciando checkout para plano:", planId);
-        const success = await subscribeToPlan(planId);
-        
-        if (!success) {
-          throw new Error("Não foi possível iniciar o processo de assinatura");
+        if (checkout && checkout.url) {
+          // Redirecionar para o checkout do Stripe
+          window.location.href = checkout.url;
         }
-        
-        // O redirecionamento é feito pela função subscribeToPlan
       } catch (error) {
+        setCheckoutLoading(null);
         console.error("Error creating subscription checkout:", error);
         toast({
           title: "Erro ao criar checkout",
           description: "Não foi possível iniciar o processo de assinatura. Por favor, tente novamente.",
           variant: "destructive"
         });
-      } finally {
-        setCheckoutLoading(null);
       }
     }
   };
@@ -198,7 +191,7 @@ const Index = () => {
       
       if (portal && portal.url) {
         // Redirecionar para o portal do cliente
-        window.open(portal.url, '_blank');
+        window.location.href = portal.url;
       }
     } catch (error) {
       setCheckoutLoading(null);

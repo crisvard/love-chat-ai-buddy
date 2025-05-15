@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { getFromCache, saveToCache, clearCacheItem, clearCache } from "@/utils/cacheUtils";
 import { toast } from "@/components/ui/use-toast";
-import { createCheckout } from "./checkout";
 
 export interface Subscription {
   id: string;
@@ -148,15 +147,10 @@ export const checkSubscription = async (): Promise<{planId: string, isActive: bo
 };
 
 // Get the current user's subscription from Supabase
-export const getCurrentSubscription = async (forceRefresh: boolean = false): Promise<{planId: string, endDate: Date | null}> => {
-  console.log("Getting current subscription, forceRefresh:", forceRefresh);
+export const getCurrentSubscription = async (): Promise<{planId: string, endDate: Date | null}> => {
+  console.log("Getting current subscription");
   
   try {
-    // Se forceRefresh, limpamos o cache
-    if (forceRefresh) {
-      clearCacheItem(CACHE_KEYS.CURRENT_SUBSCRIPTION);
-    }
-    
     // Try to get updated subscription from Edge Function first
     const subscription = await checkSubscription();
     return {
@@ -260,42 +254,26 @@ export const getCurrentSubscription = async (forceRefresh: boolean = false): Pro
 // Create subscription checkout session via Edge Function
 export const createSubscriptionCheckout = async (planId: string): Promise<{url: string, sessionId: string} | null> => {
   try {
-    console.log(`Criando checkout de assinatura para plano: ${planId}`);
+    console.log(`Creating subscription checkout for plan: ${planId}`);
     
-    // Buscar o stripe_price_id do plano
-    const { data: planData, error: planError } = await supabase
-      .from('plans')
-      .select('stripe_price_id, name')
-      .eq('id', planId)
-      .single();
-      
-    if (planError || !planData || !planData.stripe_price_id) {
-      console.error("Erro ao buscar plano:", planError || "Plano não encontrado ou sem price_id");
+    const { data, error } = await supabase.functions.invoke('create-subscription', {
+      body: { planId }
+    });
+    
+    if (error) {
+      console.error("Error creating subscription checkout:", error);
       toast({
-        title: "Erro ao iniciar assinatura",
-        description: "Não foi possível encontrar o plano selecionado. Por favor, tente novamente.",
+        title: "Erro ao criar checkout",
+        description: "Não foi possível iniciar o processo de assinatura. Por favor, tente novamente.",
         variant: "destructive"
       });
       return null;
     }
     
-    // Criar checkout usando nossa nova função
-    const checkoutUrl = await createCheckout({
-      item_type: 'plan',
-      item_id: planId
-    });
-    
-    if (!checkoutUrl) {
-      return null;
-    }
-    
-    // Extrair session_id da URL se estiver presente
-    const url = new URL(checkoutUrl);
-    const sessionId = url.searchParams.get('session_id') || '';
-    
+    console.log("Checkout session created:", data);
     return {
-      url: checkoutUrl,
-      sessionId: sessionId
+      url: data.url,
+      sessionId: data.sessionId
     };
   } catch (error) {
     console.error("Exception in createSubscriptionCheckout:", error);
