@@ -171,6 +171,11 @@ const Signup = () => {
       }
     } catch (error) {
       console.error("Erro durante signup:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao criar conta",
+        description: "Ocorreu um erro ao criar sua conta. Tente novamente.",
+      });
     } finally {
       setIsSubmitting(false);
     }
