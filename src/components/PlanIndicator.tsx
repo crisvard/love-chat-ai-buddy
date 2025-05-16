@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getCurrentSubscription, setCurrentSubscription } from "@/services/subscription";
-import { createSubscriptionCheckout, openCheckoutSession } from "@/services/checkout";
+import { getCurrentSubscription, setCurrentSubscription, openCustomerPortal } from "@/services/subscription";
+import { subscribeToPlan } from "@/services/checkout";
 import { Json } from "@/integrations/supabase/types";
 
 interface Plan {
@@ -32,7 +33,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
     planId: currentPlanId,
     endDate: trialEndsAt
   });
-  const [processingUpgrade, setProcessingUpgrade] = useState<string | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
 
   // Load plans from Supabase
   useEffect(() => {
@@ -171,24 +172,30 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
     }
 
     try {
-      setProcessingUpgrade(planId);
-      console.log(`Iniciando upgrade para plano: ${planId}`);
-
-      // Criar sessão de checkout com o Stripe
-      const checkoutSession = await createSubscriptionCheckout(planId);
+      setLoading(planId);
       
-      if (checkoutSession) {
-        console.log("Sessão de checkout criada:", checkoutSession);
-        
-        // Abrir checkout do Stripe
-        openCheckoutSession(checkoutSession.url);
-        
+      // Para plano grátis, apenas atualizamos localmente
+      if (planId === "free") {
+        // Update user's subscription in Supabase
+        const endDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days for free trial
+        await setCurrentSubscription(planId, endDate, currentUser.id);
+
         toast({
-          title: "Processando upgrade",
-          description: "Você será redirecionado para o Stripe para finalizar o upgrade.",
+          title: "Plano atualizado!",
+          description: `Seu plano foi atualizado para ${planId}.`,
         });
+        
+        // Force reload to reflect changes
+        window.location.reload();
       } else {
-        throw new Error("Não foi possível criar a sessão de checkout");
+        // Usar a função subscribeToPlan para criar checkout e redirecionar
+        const success = await subscribeToPlan(planId);
+        
+        if (!success) {
+          throw new Error("Não foi possível iniciar o processo de assinatura");
+        }
+        
+        // O redirecionamento é feito pela função subscribeToPlan
       }
     } catch (error) {
       console.error("Error upgrading plan:", error);
@@ -198,7 +205,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         variant: "destructive",
       });
     } finally {
-      setProcessingUpgrade(null);
+      setLoading(null);
     }
   };
 
@@ -245,17 +252,14 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
                         <Button 
                           size="sm" 
                           onClick={() => handleUpgrade(plan.id)}
-                          disabled={processingUpgrade === plan.id}
+                          disabled={loading === plan.id}
                         >
-                          {processingUpgrade === plan.id ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processando
-                            </>
+                          {loading === plan.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
                           ) : (
-                            <>
-                              <ArrowUp className="h-4 w-4 mr-1" /> Upgrade
-                            </>
+                            <ArrowUp className="h-4 w-4 mr-1" />
                           )}
+                          Upgrade
                         </Button>
                       </div>
                     </div>

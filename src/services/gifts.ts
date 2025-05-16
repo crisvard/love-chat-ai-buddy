@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { getFromCache, saveToCache, clearCacheItem } from "@/utils/cacheUtils";
-import { createGiftCheckout } from "@/services/checkout";
+import { createCheckout, CheckoutOptions } from "./checkout";
 
 export interface Gift {
   id: string;
@@ -69,6 +69,40 @@ export const fetchActiveGifts = async (): Promise<Gift[]> => {
   } catch (error) {
     console.error("Error in fetchActiveGifts:", error);
     return [];
+  }
+};
+
+// Criar sessão de checkout para compra de gift
+export const createGiftCheckout = async (giftId: string, quantity: number = 1): Promise<{url: string, sessionId: string} | null> => {
+  try {
+    console.log(`Criando checkout para gift: ${giftId}, quantidade: ${quantity}`);
+    
+    const checkoutUrl = await createCheckout({
+      item_type: 'gift',
+      item_id: giftId,
+      quantity
+    });
+    
+    if (!checkoutUrl) {
+      return null;
+    }
+    
+    // Extrair session_id da URL se estiver presente
+    const url = new URL(checkoutUrl);
+    const sessionId = url.searchParams.get('session_id') || '';
+    
+    return {
+      url: checkoutUrl,
+      sessionId: sessionId
+    };
+  } catch (error) {
+    console.error("Exceção em createGiftCheckout:", error);
+    toast({
+      title: "Erro inesperado",
+      description: "Ocorreu um erro ao processar sua solicitação de compra.",
+      variant: "destructive"
+    });
+    return null;
   }
 };
 
@@ -204,9 +238,48 @@ export const verifyGiftPurchase = async (sessionId: string): Promise<UserPurchas
   try {
     console.log(`Verificando compra com sessionId: ${sessionId}`);
     
-    // TODO: Implementar Edge Function para verificar o status da compra com o Stripe
-    // Por enquanto, só retornamos null
-    return null;
+    // Dar um tempo para o webhook processar a compra
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Buscar compras recentes do usuário atual
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !userData.user) {
+      console.error("User not authenticated:", userError);
+      return null;
+    }
+    
+    // Invalidar cache para buscar dados atualizados
+    clearCacheItem(CACHE_KEYS.USER_PURCHASED_GIFTS);
+    
+    // Buscar compras recentes (últimas 5)
+    const { data, error } = await supabase
+      .from('user_purchased_gifts')
+      .select('*, gifts(*)')
+      .eq('user_id', userData.user.id)
+      .order('purchase_date', { ascending: false })
+      .limit(5);
+    
+    if (error || !data || data.length === 0) {
+      console.error("Error fetching recent purchases:", error);
+      return null;
+    }
+    
+    // Os gifts mais recentes aparecem primeiro, então retornar o primeiro
+    const mostRecentPurchase = data[0];
+    const purchasedGift: UserPurchasedGift = {
+      id: mostRecentPurchase.id,
+      user_id: mostRecentPurchase.user_id,
+      gift_id: mostRecentPurchase.gift_id,
+      purchase_date: mostRecentPurchase.purchase_date,
+      price_paid: mostRecentPurchase.price_paid,
+      transaction_details: mostRecentPurchase.transaction_details ? 
+        JSON.parse(JSON.stringify(mostRecentPurchase.transaction_details)) : null,
+      used_in_chat_message_id: mostRecentPurchase.used_in_chat_message_id,
+      gift: mostRecentPurchase.gifts as Gift
+    };
+    
+    return purchasedGift;
   } catch (error) {
     console.error("Error verifying gift purchase:", error);
     return null;

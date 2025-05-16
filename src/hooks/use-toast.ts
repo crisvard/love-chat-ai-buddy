@@ -1,69 +1,52 @@
 
-import { toast as sonnerToast, Toaster as SonnerToaster } from "sonner";
+import * as React from "react";
+import { create } from "zustand";
 
-export interface ToastProps {
-  title?: string;
-  description?: string;
-  variant?: "default" | "destructive" | "success" | "warning" | "info";
-  duration?: number;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
-}
-
-export function toast({
-  title,
-  description,
-  variant = "default",
-  duration = 5000,
-  action,
-}: ToastProps) {
-  // Mapeando variantes do nosso sistema para variantes do sonner
-  let variantType:
-    | "default"
-    | "success"
-    | "error"
-    | "warning"
-    | "info" = "default";
-
-  switch (variant) {
-    case "destructive":
-      variantType = "error";
-      break;
-    case "success":
-      variantType = "success";
-      break;
-    case "warning":
-      variantType = "warning";
-      break;
-    case "info":
-      variantType = "info";
-      break;
-  }
-
-  return sonnerToast(title, {
-    description: description,
-    duration: duration,
-    action: action
-      ? {
-          label: action.label,
-          onClick: action.onClick,
-        }
-      : undefined,
-    position: "bottom-right",
-    // Usando a propriedade correta do sonner compatível com ExternalToast
-    // @ts-expect-error - O tipo ExternalToast não está bem definido na lib
-    variant: variantType,
-  });
-}
+const useToastStore = create<{
+  toasts: Array<{
+    id: string;
+    title?: React.ReactNode;
+    description?: React.ReactNode;
+    action?: React.ReactNode;
+    variant?: "default" | "destructive" | "success";
+  }>;
+  addToast: (toast: {
+    id?: string;
+    title?: React.ReactNode;
+    description?: React.ReactNode;
+    action?: React.ReactNode;
+    variant?: "default" | "destructive" | "success";
+  }) => void;
+  dismissToast: (id: string) => void;
+}>((set) => ({
+  toasts: [],
+  addToast: (toast) => {
+    const id = toast.id || String(Date.now());
+    set((state) => ({
+      toasts: [...state.toasts, { ...toast, id }],
+    }));
+    return id;
+  },
+  dismissToast: (id) => {
+    set((state) => ({
+      toasts: state.toasts.filter((toast) => toast.id !== id),
+    }));
+  },
+}));
 
 export function useToast() {
-  // A biblioteca sonner não exporta useToaster, então precisamos implementar nossa própria lógica
-  // Vamos retornar um array vazio para toasts, já que o componente Toaster da sonner
-  // gerencia seus próprios toasts internamente
+  const { toasts, addToast, dismissToast } = useToastStore();
+
   return {
-    toast,
-    toasts: [], // Array vazio, pois o gerenciamento é interno da biblioteca sonner
+    toasts,
+    toast: (props: {
+      title?: React.ReactNode;
+      description?: React.ReactNode;
+      action?: React.ReactNode;
+      variant?: "default" | "destructive" | "success";
+    }) => addToast(props),
+    dismiss: (id: string) => dismissToast(id),
   };
 }
+
+export const toast = useToastStore.getState().addToast;

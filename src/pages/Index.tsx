@@ -6,7 +6,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentSubscription, isTrialActive, createSubscriptionCheckout, openCustomerPortal } from "@/services/subscription";
+import { getCurrentSubscription, isTrialActive, openCustomerPortal } from "@/services/subscription";
+import { subscribeToPlan } from "@/services/checkout";
 import { toast } from "@/components/ui/use-toast";
 
 interface Plan {
@@ -139,8 +140,8 @@ const Index = () => {
   
   const handleAction = async (planId: string, actionType: "primary" | "secondary") => {
     if (!currentUser) {
-      // Usuário não logado
-      navigate("/cadastro");
+      // Usuário não logado - redirecionar para cadastro com o plano selecionado
+      navigate(`/cadastro?plan=${planId}`);
       return;
     }
     
@@ -161,24 +162,27 @@ const Index = () => {
         navigate("/chat");
       }
     } else {
-      // Upgrade de plano - criar checkout
+      // Upgrade de plano - criar checkout com Stripe
       try {
         setCheckoutLoading(planId);
-        const checkout = await createSubscriptionCheckout(planId);
-        setCheckoutLoading(null);
         
-        if (checkout && checkout.url) {
-          // Redirecionar para o checkout do Stripe
-          window.location.href = checkout.url;
+        // Usar a função subscribeToPlan para iniciar o checkout do Stripe
+        const success = await subscribeToPlan(planId);
+        
+        if (!success) {
+          throw new Error("Não foi possível iniciar o processo de assinatura");
         }
+        
+        // O redirecionamento é feito pela função subscribeToPlan
       } catch (error) {
-        setCheckoutLoading(null);
         console.error("Error creating subscription checkout:", error);
         toast({
           title: "Erro ao criar checkout",
           description: "Não foi possível iniciar o processo de assinatura. Por favor, tente novamente.",
           variant: "destructive"
         });
+      } finally {
+        setCheckoutLoading(null);
       }
     }
   };
@@ -191,7 +195,7 @@ const Index = () => {
       
       if (portal && portal.url) {
         // Redirecionar para o portal do cliente
-        window.location.href = portal.url;
+        window.open(portal.url, '_blank');
       }
     } catch (error) {
       setCheckoutLoading(null);

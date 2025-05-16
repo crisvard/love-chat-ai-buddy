@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Gift, fetchActiveGifts } from "@/services/gifts";
-import { createGiftCheckout, openCheckoutSession } from "@/services/checkout";
+import { Gift, fetchActiveGifts, purchaseGift, createGiftCheckout } from "@/services/gifts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,31 +50,26 @@ export function GiftsModal({ isOpen, onClose, onGiftSelected }: GiftsModalProps)
     try {
       setPurchasing(true);
       
-      // Usar o serviço de checkout para criar uma sessão do Stripe
-      const checkoutSession = await createGiftCheckout(selectedGift.id);
+      // Primeiro tentar usar Stripe para checkout
+      const checkout = await createGiftCheckout(selectedGift.id);
       
-      if (checkoutSession) {
-        console.log("Checkout session criada:", checkoutSession);
-        // Abrir página de checkout do Stripe
-        openCheckoutSession(checkoutSession.url);
-        
-        // Fechar o modal depois de abrir o checkout
+      if (checkout && checkout.url) {
+        // Abrir checkout em nova janela/aba
+        window.open(checkout.url, '_blank');
         onClose();
-        
-        // O onGiftSelected pode ser chamado após o retorno do checkout através de um webhook
-        // ou da página de sucesso, dependendo da implementação do seu fluxo
-        toast({
-          title: "Processando compra",
-          description: "Você será redirecionado para o Stripe para finalizar sua compra.",
-        });
+        return;
       }
-    } catch (error) {
-      console.error("Erro ao comprar presente:", error);
-      toast({
-        title: "Erro ao processar compra",
-        description: "Ocorreu um erro ao processar sua compra. Por favor, tente novamente.",
-        variant: "destructive"
-      });
+      
+      // Fallback para compra direta no app (créditos)
+      const giftPurchase = await purchaseGift(selectedGift.id, selectedGift.price);
+      
+      if (giftPurchase) {
+        onGiftSelected({
+          ...giftPurchase,
+          gift: selectedGift
+        });
+        onClose();
+      }
     } finally {
       setPurchasing(false);
     }
