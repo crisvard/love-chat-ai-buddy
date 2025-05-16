@@ -102,11 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setCurrentUser(data.user);
       
-      // Load agent data after successful login and cache it
-      if (data.user) {
-        await loadAndCacheAgentData(data.user.id);
-      }
-      
+      // Simplify agent data loading since we're removing references to non-existent tables
       return true;
     } catch (error) {
       console.error("Erro durante o login:", error);
@@ -124,43 +120,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // First try to get from user_selected_agent table (new table)
-      const { data: selectedAgentData, error: agentError } = await supabase
-        .from('user_selected_agent')
-        .select('nickname, ai_agents!selected_agent_id(*)')
-        .eq('user_id', userId as unknown as string)
-        .single();
-        
-      if (!agentError && selectedAgentData && selectedAgentData.ai_agents) {
-        const agentData = {
-          id: selectedAgentData.ai_agents.id || '',
-          name: selectedAgentData.ai_agents.name || '',
-          image: selectedAgentData.ai_agents.image || '',
-          nickname: selectedAgentData.nickname
-        };
-        localStorage.setItem("selectedAgent", JSON.stringify(agentData));
-        saveToCache(CACHE_KEYS.AGENT_DATA, agentData, CACHE_TTL.AGENT);
-        return;
-      }
-      
-      // Fallback to user_agent_selections table (legacy)
-      const { data: legacyData, error: legacyError } = await supabase
-        .from('user_agent_selections')
-        .select('nickname, agents(*)')
-        .eq('user_id', userId as unknown as string)
-        .single();
-        
-      if (!legacyError && legacyData && legacyData.agents) {
-        const agentData = {
-          id: legacyData.agents.id || '',
-          name: legacyData.agents.name || '',
-          image: legacyData.agents.image || '',
-          nickname: legacyData.nickname
-        };
-        localStorage.setItem("selectedAgent", JSON.stringify(agentData));
-        saveToCache(CACHE_KEYS.AGENT_DATA, agentData, CACHE_TTL.AGENT);
-        return;
-      }
+      // Since we don't have the actual tables, we won't attempt to query them
+      // This function is simplified until we create the needed tables
+      console.log("Agent data tables not available");
     } catch (error) {
       console.error("Error loading agent data:", error);
     }

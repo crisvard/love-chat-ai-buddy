@@ -13,6 +13,8 @@ import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancelled from "./pages/PaymentCancelled";
+import SuperAdmin from "./pages/SuperAdmin";
+import Admin from "./pages/Admin";
 import { AuthProvider } from "./context/AuthContext";
 import Cadastro from "./pages/Cadastro";
 
@@ -31,6 +33,8 @@ const AppRoutes = () => {
         <Route path="/chat" element={<Chat />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-cancelled" element={<PaymentCancelled />} />
+        <Route path="/superadmin" element={<SuperAdmin />} />
+        <Route path="/admin" element={<Admin />} />
         {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -79,8 +79,9 @@ const AdminLoginDialog = ({ isOpen, onLoginSuccess }: AdminLoginDialogProps) => 
               .upsert({
                 user_id: data.user.id,
                 plan_id: 'admin',
-                start_date: new Date().toISOString(),
-                end_date: null,
+                status: 'active',
+                current_period_start: new Date().toISOString(),
+                current_period_end: null,
                 is_active: true
               });
               
