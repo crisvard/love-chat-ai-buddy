@@ -45,8 +45,7 @@ export const isSessionValid = async (): Promise<boolean> => {
 // Helper function to preload agent data into localStorage (used on login/signup)
 export const preloadAgentData = async (userId: string): Promise<boolean> => {
   try {
-    // Simplified version that doesn't use non-existent tables
-    // Just return false as we're removing the references to tables that don't exist
+    // Simple version that just returns false
     return false;
   } catch (error) {
     console.error("Error preloading agent data:", error);

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { Gift, UserIcon, DollarSign, Bell, User } from "lucide-react";
+import { Gift, UserIcon, DollarSign, Bell } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLoginDialog from "@/components/AdminLoginDialog";
@@ -17,7 +17,7 @@ interface Plan {
   id: string;
   name: string;
   price: string;
-  duration: string;
+  interval: string;  // Changed from duration to interval to match DB schema
   description: string;
   features: string[];
 }
@@ -31,17 +31,10 @@ interface Gift {
 
 interface UserData {
   id: string;
-  name: string;
   email: string;
-  country: string;
-  plan: string;
-}
-
-interface AgentProfile {
-  id: string;
-  name: string;
-  gender: "male" | "female";
-  image: string;
+  created_at: string;
+  subscription_status?: string;
+  plan_id?: string;
 }
 
 const Admin = () => {
@@ -50,15 +43,8 @@ const Admin = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
-  const [agents, setAgents] = useState<AgentProfile[]>([]);
   const [newGift, setNewGift] = useState({ name: "", emoji: "", price: "" });
   const [notification, setNotification] = useState("");
-  const [newAgent, setNewAgent] = useState<{ name: string; gender: "male" | "female"; image: string }>({ 
-    name: "", 
-    gender: "female", 
-    image: "" 
-  });
-  const [editingAgent, setEditingAgent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -135,7 +121,7 @@ const Admin = () => {
             id: plan.id,
             name: plan.name,
             price: plan.price.toString(),
-            duration: plan.duration,
+            interval: plan.interval, // Changed from duration to interval
             description: plan.description || "",
             features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : []
           })));
@@ -164,7 +150,7 @@ const Admin = () => {
           setGifts(giftsData.map(gift => ({
             id: gift.id,
             name: gift.name,
-            emoji: gift.emoji,
+            emoji: gift.emoji || "🎁", // Default emoji if null
             price: gift.price.toString()
           })));
         }
@@ -173,49 +159,20 @@ const Admin = () => {
         setError(prev => prev || `Erro ao carregar presentes: ${err.message}`);
       }
       
-      // Fetch agents with error handling
+      // Fetch users with subscriptions info
       try {
-        const { data: agentsData, error: agentsError } = await supabase
-          .from('agents')
-          .select('*');
+        // Get users directly from auth.users via RPC function
+        const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
           
-        if (agentsError) {
-          console.error("Error fetching agents:", agentsError);
+        if (usersError) {
+          console.error("Error fetching users:", usersError);
           toast({
             variant: "destructive",
-            title: "Erro ao carregar agentes",
-            description: agentsError.message,
+            title: "Erro ao carregar usuários",
+            description: usersError.message,
           });
-        } else if (agentsData) {
-          console.log("Agents data:", agentsData);
-          
-          setAgents(agentsData.map(agent => ({
-            id: agent.id,
-            name: agent.name,
-            gender: agent.gender as "male" | "female",
-            image: agent.image
-          })));
-        }
-      } catch (err: any) {
-        console.error("Exception fetching agents:", err);
-        setError(prev => prev || `Erro ao carregar agentes: ${err.message}`);
-      }
-      
-      // Fetch users (profiles) with error handling
-      try {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*');
-          
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError);
-          toast({
-            variant: "destructive",
-            title: "Erro ao carregar perfis de usuários",
-            description: profilesError.message,
-          });
-        } else if (profilesData) {
-          console.log("Profiles data:", profilesData);
+        } else if (usersData) {
+          console.log("Users data:", usersData);
           
           // Try to fetch subscriptions
           let subscriptionsData: any[] = [];
@@ -233,23 +190,23 @@ const Admin = () => {
             console.error("Exception fetching subscriptions:", err);
           }
           
-          // Create user list with or without subscription data
-          const usersList = profilesData.map(profile => {
-            const subscription = subscriptionsData.find((sub: any) => sub.user_id === profile.id);
+          // Create user list with subscription data
+          const usersList = (usersData?.users || []).map(user => {
+            const subscription = subscriptionsData.find((sub: any) => sub.user_id === user.id);
             return {
-              id: profile.id,
-              name: profile.name,
-              email: profile.email,
-              country: profile.country,
-              plan: subscription ? subscription.plan_id : 'none'
+              id: user.id,
+              email: user.email || 'No email',
+              created_at: user.created_at,
+              subscription_status: subscription ? subscription.status : 'none',
+              plan_id: subscription ? subscription.plan_id : undefined
             };
           });
           
           setUsers(usersList);
         }
       } catch (err: any) {
-        console.error("Exception fetching user profiles:", err);
-        setError(prev => prev || `Erro ao carregar perfis de usuários: ${err.message}`);
+        console.error("Exception fetching users:", err);
+        setError(prev => prev || `Erro ao carregar usuários: ${err.message}`);
       }
       
     } catch (error: any) {
@@ -487,177 +444,6 @@ const Admin = () => {
     }
   };
 
-  const handleAddAgent = async () => {
-    if (!newAgent.name || !newAgent.image) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao adicionar perfil",
-        description: "Preencha todos os campos.",
-      });
-      return;
-    }
-
-    try {
-      console.log("Adding new agent:", newAgent);
-      
-      const { data, error } = await supabase
-        .from('agents')
-        .insert({
-          name: newAgent.name,
-          gender: newAgent.gender,
-          image: newAgent.image
-        })
-        .select();
-        
-      if (error) {
-        console.error("Error adding agent:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: `Erro ao adicionar o perfil: ${error.message}`,
-        });
-        return;
-      }
-      
-      if (!data || data.length === 0) {
-        console.error("No data returned after adding agent");
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível adicionar o perfil. Nenhum dado retornado.",
-        });
-        return;
-      }
-      
-      console.log("Agent added successfully:", data);
-      
-      // Add to local state
-      const newAgentWithCorrectType: AgentProfile = {
-        id: data[0].id,
-        name: newAgent.name,
-        gender: newAgent.gender,
-        image: newAgent.image
-      };
-      
-      setAgents([...agents, newAgentWithCorrectType]);
-      
-      setNewAgent({ name: "", gender: "female", image: "" });
-      
-      toast({
-        title: "Perfil adicionado",
-        description: `${newAgent.name} foi adicionado com sucesso.`,
-      });
-    } catch (error: any) {
-      console.error("Error adding agent:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: `Ocorreu um erro ao adicionar o perfil: ${error.message}`,
-      });
-    }
-  };
-
-  const handleDeleteAgent = async (id: string) => {
-    try {
-      console.log("Deleting agent:", id);
-      
-      const { error } = await supabase
-        .from('agents')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error("Error deleting agent:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: `Erro ao remover o perfil: ${error.message}`,
-        });
-        return;
-      }
-      
-      console.log("Agent deleted successfully");
-      
-      // Update local state
-      setAgents(agents.filter((agent) => agent.id !== id));
-      
-      toast({
-        title: "Perfil removido",
-        description: "O perfil foi removido com sucesso.",
-      });
-    } catch (error: any) {
-      console.error("Error deleting agent:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: `Ocorreu um erro ao remover o perfil: ${error.message}`,
-      });
-    }
-  };
-
-  const handleEditAgent = async (id: string, field: string, value: string) => {
-    try {
-      // For gender field, ensure it's only 'male' or 'female'
-      if (field === 'gender' && value !== 'male' && value !== 'female') {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Gênero deve ser 'male' ou 'female'.",
-        });
-        return;
-      }
-      
-      console.log(`Updating agent ${id}, field ${field} with value:`, value);
-      
-      const updateData: any = {
-        [field]: value
-      };
-      
-      const { error } = await supabase
-        .from('agents')
-        .update(updateData)
-        .eq('id', id);
-        
-      if (error) {
-        console.error("Error updating agent:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: `Erro ao atualizar o perfil: ${error.message}`,
-        });
-        return;
-      }
-      
-      console.log("Agent updated successfully");
-      
-      // Update local state with type safety
-      setAgents(
-        agents.map((agent) => {
-          if (agent.id === id) {
-            if (field === 'gender') {
-              return { ...agent, gender: value as "male" | "female" };
-            } else {
-              return { ...agent, [field]: value };
-            }
-          }
-          return agent;
-        })
-      );
-      
-      toast({
-        title: "Perfil atualizado",
-        description: "Perfil atualizado com sucesso.",
-      });
-    } catch (error: any) {
-      console.error("Error updating agent:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: `Ocorreu um erro ao atualizar o perfil: ${error.message}`,
-      });
-    }
-  };
-
   const handleSendNotification = () => {
     if (!notification) {
       toast({
@@ -745,7 +531,7 @@ const Admin = () => {
               </div>
             ) : (
               <Tabs defaultValue="gifts" className="w-full">
-                <TabsList className="grid grid-cols-5 mb-8">
+                <TabsList className="grid grid-cols-4 mb-8">
                   <TabsTrigger value="gifts" className="flex items-center gap-2">
                     <Gift className="h-4 w-4" />
                     <span>Presentes</span>
@@ -757,10 +543,6 @@ const Admin = () => {
                   <TabsTrigger value="users" className="flex items-center gap-2">
                     <UserIcon className="h-4 w-4" />
                     <span>Usuários</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="profiles" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span>Perfis</span>
                   </TabsTrigger>
                   <TabsTrigger value="notifications" className="flex items-center gap-2">
                     <Bell className="h-4 w-4" />
@@ -875,7 +657,7 @@ const Admin = () => {
                                     min="0"
                                     onChange={(e) => handleUpdatePlan(plan.id, "price", e.target.value)}
                                   />
-                                  <span>/{plan.duration}</span>
+                                  <span>/{plan.interval}</span>
                                 </div>
                               </div>
                               <div>
@@ -913,103 +695,25 @@ const Admin = () => {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b bg-gray-50">
-                                <th className="p-2 text-left font-medium">Nome</th>
+                                <th className="p-2 text-left font-medium">ID</th>
                                 <th className="p-2 text-left font-medium">Email</th>
-                                <th className="p-2 text-left font-medium">País</th>
-                                <th className="p-2 text-left font-medium">Plano</th>
+                                <th className="p-2 text-left font-medium">Criado em</th>
+                                <th className="p-2 text-left font-medium">Status da Assinatura</th>
                               </tr>
                             </thead>
                             <tbody>
                               {users.map((user) => (
                                 <tr key={user.id} className="border-b hover:bg-gray-50">
-                                  <td className="p-2">{user.name}</td>
+                                  <td className="p-2">{user.id.substring(0, 8)}...</td>
                                   <td className="p-2">{user.email}</td>
-                                  <td className="p-2">{user.country}</td>
-                                  <td className="p-2 capitalize">{user.plan}</td>
+                                  <td className="p-2">{new Date(user.created_at).toLocaleDateString()}</td>
+                                  <td className="p-2 capitalize">{user.subscription_status || 'none'}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="profiles">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Gerenciar Perfis de Agentes</CardTitle>
-                      <CardDescription>Adicione, edite ou remova perfis disponíveis para os usuários</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-6">
-                        <div className="flex flex-col gap-4">
-                          <div className="grid grid-cols-4 gap-4">
-                            <Input
-                              placeholder="Nome do perfil"
-                              value={newAgent.name}
-                              onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
-                            />
-                            <select
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
-                              value={newAgent.gender}
-                              onChange={(e) => setNewAgent({ ...newAgent, gender: e.target.value as "male" | "female" })}
-                            >
-                              <option value="female">Feminino</option>
-                              <option value="male">Masculino</option>
-                            </select>
-                            <Input
-                              placeholder="URL da imagem"
-                              value={newAgent.image}
-                              onChange={(e) => setNewAgent({ ...newAgent, image: e.target.value })}
-                            />
-                            <Button onClick={handleAddAgent}>Adicionar</Button>
-                          </div>
-
-                          <div className="border rounded-md p-4">
-                            <h3 className="text-lg font-medium mb-4">Perfis disponíveis</h3>
-                            {agents.length === 0 ? (
-                              <div className="text-center py-4 text-gray-500">
-                                Nenhum perfil encontrado. Adicione um novo perfil acima.
-                              </div>
-                            ) : (
-                              <div className="grid gap-4">
-                                {agents.map((agent) => (
-                                  <div key={agent.id} className="grid grid-cols-5 items-center gap-4 p-2 bg-gray-50 rounded-md">
-                                    <Avatar className="h-10 w-10">
-                                      <img src={agent.image} alt={agent.name} />
-                                    </Avatar>
-                                    <Input
-                                      value={agent.name}
-                                      onChange={(e) => handleEditAgent(agent.id, "name", e.target.value)}
-                                    />
-                                    <select
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2"
-                                      value={agent.gender}
-                                      onChange={(e) => handleEditAgent(agent.id, "gender", e.target.value)}
-                                    >
-                                      <option value="female">Feminino</option>
-                                      <option value="male">Masculino</option>
-                                    </select>
-                                    <Input
-                                      value={agent.image}
-                                      onChange={(e) => handleEditAgent(agent.id, "image", e.target.value)}
-                                    />
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDeleteAgent(agent.id)}
-                                    >
-                                      Excluir
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
