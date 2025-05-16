@@ -9,65 +9,13 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      agents: {
-        Row: {
-          gender: string
-          id: string
-          image: string
-          name: string
-        }
-        Insert: {
-          gender: string
-          id?: string
-          image: string
-          name: string
-        }
-        Update: {
-          gender?: string
-          id?: string
-          image?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      ai_agents: {
-        Row: {
-          created_at: string
-          description: string | null
-          gender: string
-          id: string
-          image: string
-          is_active: boolean | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          gender?: string
-          id?: string
-          image: string
-          is_active?: boolean | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          gender?: string
-          id?: string
-          image?: string
-          is_active?: boolean | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       gifts: {
         Row: {
           created_at: string | null
-          emoji: string
+          description: string | null
+          emoji: string | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           name: string
           price: number
@@ -77,8 +25,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          emoji: string
+          description?: string | null
+          emoji?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           name: string
           price: number
@@ -88,8 +38,10 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          emoji?: string
+          description?: string | null
+          emoji?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           name?: string
           price?: number
@@ -101,145 +53,83 @@ export type Database = {
       }
       plans: {
         Row: {
+          created_at: string | null
           description: string | null
-          display_order: number | null
-          duration: string
-          features: Json
+          features: Json | null
           id: string
+          interval: string
           is_active: boolean | null
           name: string
           price: number
           stripe_price_id: string | null
           stripe_product_id: string | null
+          updated_at: string | null
         }
         Insert: {
+          created_at?: string | null
           description?: string | null
-          display_order?: number | null
-          duration: string
-          features?: Json
-          id: string
+          features?: Json | null
+          id?: string
+          interval: string
           is_active?: boolean | null
           name: string
           price: number
           stripe_price_id?: string | null
           stripe_product_id?: string | null
+          updated_at?: string | null
         }
         Update: {
+          created_at?: string | null
           description?: string | null
-          display_order?: number | null
-          duration?: string
-          features?: Json
+          features?: Json | null
           id?: string
+          interval?: string
           is_active?: boolean | null
           name?: string
           price?: number
           stripe_price_id?: string | null
           stripe_product_id?: string | null
+          updated_at?: string | null
         }
         Relationships: []
-      }
-      profiles: {
-        Row: {
-          country: string
-          created_at: string
-          email: string
-          id: string
-          is_adult: boolean
-          name: string
-          stripe_customer_id: string | null
-          terms_accepted: boolean
-        }
-        Insert: {
-          country: string
-          created_at?: string
-          email: string
-          id: string
-          is_adult?: boolean
-          name: string
-          stripe_customer_id?: string | null
-          terms_accepted?: boolean
-        }
-        Update: {
-          country?: string
-          created_at?: string
-          email?: string
-          id?: string
-          is_adult?: boolean
-          name?: string
-          stripe_customer_id?: string | null
-          terms_accepted?: boolean
-        }
-        Relationships: []
-      }
-      user_agent_selections: {
-        Row: {
-          agent_avatar: string | null
-          agent_id: string
-          created_at: string
-          id: string
-          nickname: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          agent_avatar?: string | null
-          agent_id: string
-          created_at?: string
-          id?: string
-          nickname: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          agent_avatar?: string | null
-          agent_id?: string
-          created_at?: string
-          id?: string
-          nickname?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_agent_selections_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_purchased_gifts: {
         Row: {
-          created_at: string
+          created_at: string | null
           gift_id: string
           id: string
-          price_paid: number
-          purchase_date: string
+          price_paid: number | null
+          purchase_date: string | null
+          quantity: number | null
+          stripe_payment_intent_id: string | null
           transaction_details: Json | null
-          updated_at: string
+          updated_at: string | null
           used_in_chat_message_id: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           gift_id: string
           id?: string
-          price_paid?: number
-          purchase_date?: string
+          price_paid?: number | null
+          purchase_date?: string | null
+          quantity?: number | null
+          stripe_payment_intent_id?: string | null
           transaction_details?: Json | null
-          updated_at?: string
+          updated_at?: string | null
           used_in_chat_message_id?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           gift_id?: string
           id?: string
-          price_paid?: number
-          purchase_date?: string
+          price_paid?: number | null
+          purchase_date?: string | null
+          quantity?: number | null
+          stripe_payment_intent_id?: string | null
           transaction_details?: Json | null
-          updated_at?: string
+          updated_at?: string | null
           used_in_chat_message_id?: string | null
           user_id?: string
         }
@@ -253,88 +143,55 @@ export type Database = {
           },
         ]
       }
-      user_selected_agent: {
+      user_subscriptions: {
         Row: {
-          created_at: string
-          custom_avatar_url: string | null
-          nickname: string
-          selected_agent_id: string | null
-          updated_at: string
+          cancel_at_period_end: boolean | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_id: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
-          custom_avatar_url?: string | null
-          nickname: string
-          selected_agent_id?: string | null
-          updated_at?: string
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string | null
+          status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
-          custom_avatar_url?: string | null
-          nickname?: string
-          selected_agent_id?: string | null
-          updated_at?: string
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "user_selected_agent_selected_agent_id_fkey"
-            columns: ["selected_agent_id"]
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "ai_agents"
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
-      }
-      user_subscriptions: {
-        Row: {
-          created_at: string
-          current_period_end: string | null
-          current_period_start: string | null
-          end_date: string | null
-          id: string
-          is_active: boolean
-          plan_id: string
-          start_date: string
-          status: string | null
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          current_period_end?: string | null
-          current_period_start?: string | null
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          plan_id: string
-          start_date?: string
-          status?: string | null
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          current_period_end?: string | null
-          current_period_start?: string | null
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          plan_id?: string
-          start_date?: string
-          status?: string | null
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
     }
     Views: {
