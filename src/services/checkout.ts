@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { getCurrentSubscription } from "./subscription";
 
 export type CheckoutItemType = 'plan' | 'gift';
@@ -11,6 +11,7 @@ export interface CheckoutOptions {
   quantity?: number;
   success_url?: string;
   cancel_url?: string;
+  stripe_price_id?: string;  // Campo adicionado para permitir price_id direto
 }
 
 /**
@@ -79,12 +80,40 @@ export const createCheckout = async (options: CheckoutOptions): Promise<string |
 };
 
 /**
- * Cria um checkout para assinatura de plano
+ * Cria um checkout para assinatura de plano usando os price_ids do Stripe diretamente
  */
 export const subscribeToPlan = async (planId: string): Promise<boolean> => {
+  // Mapear planId para price_id do Stripe
+  let stripe_price_id = "";
+  
+  switch(planId) {
+    case "basic":
+      stripe_price_id = "price_1RP6SHQPvTOtvaP8Xbp5NElV"; // Básico
+      break;
+    case "intermediate":
+      stripe_price_id = "price_1RMxchQPvTOtvaP8pxMzMxE1"; // Intermediário
+      break;
+    case "premium":
+      stripe_price_id = "price_1RP6SHQPvTOtvaP8Xbp5NElV"; // Premium
+      break;
+    default:
+      console.error("ID de plano desconhecido:", planId);
+      return false;
+  }
+  
+  if (!stripe_price_id) {
+    toast({
+      title: "Erro ao processar pagamento",
+      description: "ID do plano inválido",
+      variant: "destructive"
+    });
+    return false;
+  }
+  
   const checkoutUrl = await createCheckout({
     item_type: 'plan',
-    item_id: planId
+    item_id: planId,
+    stripe_price_id: stripe_price_id
   });
   
   if (!checkoutUrl) {

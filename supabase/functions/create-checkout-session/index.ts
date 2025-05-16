@@ -55,10 +55,11 @@ serve(async (req) => {
       user_id,
       quantity = 1,
       success_url,
-      cancel_url
+      cancel_url,
+      stripe_price_id // Novo campo para price_id direto
     } = await req.json();
     
-    logStep("Dados recebidos", { item_type, item_id, user_id, quantity });
+    logStep("Dados recebidos", { item_type, item_id, user_id, quantity, stripe_price_id });
     
     if (!item_type || !item_id || !user_id) {
       throw new Error("Parâmetros obrigatórios ausentes: item_type, item_id, user_id");
@@ -108,24 +109,31 @@ serve(async (req) => {
     let priceId: string;
     
     if (item_type === 'plan') {
-      // Buscar plano no banco de dados
-      const { data: planData, error: planError } = await supabaseAdmin
-        .from("plans")
-        .select("stripe_price_id, name")
-        .eq("id", item_id)
-        .single();
+      // Usar o price_id fornecido diretamente, se disponível
+      if (stripe_price_id) {
+        priceId = stripe_price_id;
+        logStep("Usando price_id fornecido diretamente", { priceId });
+      } else {
+        // Buscar plano no banco de dados
+        const { data: planData, error: planError } = await supabaseAdmin
+          .from("plans")
+          .select("stripe_price_id, name")
+          .eq("id", item_id)
+          .single();
+          
+        if (planError || !planData) {
+          throw new Error(`Erro ao buscar plano: ${planError?.message || "Plano não encontrado"}`);
+        }
         
-      if (planError || !planData) {
-        throw new Error(`Erro ao buscar plano: ${planError?.message || "Plano não encontrado"}`);
-      }
-      
-      if (!planData.stripe_price_id) {
-        throw new Error(`O plano '${planData.name}' não possui um ID de preço do Stripe configurado`);
+        if (!planData.stripe_price_id) {
+          throw new Error(`O plano '${planData.name}' não possui um ID de preço do Stripe configurado`);
+        }
+        
+        priceId = planData.stripe_price_id;
+        logStep("Plano encontrado", { planName: planData.name, priceId });
       }
       
       mode = 'subscription';
-      priceId = planData.stripe_price_id;
-      logStep("Plano encontrado", { planName: planData.name, priceId });
       
     } else { // item_type === 'gift'
       // Buscar gift

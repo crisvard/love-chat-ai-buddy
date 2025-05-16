@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -189,6 +188,7 @@ const PlanIndicator: React.FC<PlanIndicatorProps> = ({ currentPlanId, trialEndsA
         window.location.reload();
       } else {
         // Usar a função subscribeToPlan para criar checkout e redirecionar
+        // Esta função agora usa os price_ids do Stripe diretamente
         const success = await subscribeToPlan(planId);
         
         if (!success) {
