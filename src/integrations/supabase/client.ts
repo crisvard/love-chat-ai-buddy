@@ -45,7 +45,47 @@ export const isSessionValid = async (): Promise<boolean> => {
 // Helper function to preload agent data into localStorage (used on login/signup)
 export const preloadAgentData = async (userId: string): Promise<boolean> => {
   try {
-    // Simple version that just returns false
+    // First try to load from user_selected_agent table (new table)
+    const { data: selectedAgentData, error: agentError } = await supabase
+      .from('user_selected_agent')
+      .select('nickname, selected_agent_id, ai_agents!inner(*)')
+      .eq('user_id', userId)
+      .single();
+      
+    if (!agentError && selectedAgentData) {
+      const agentData = {
+        id: selectedAgentData.selected_agent_id,
+        name: selectedAgentData.ai_agents?.name || "",
+        image: selectedAgentData.ai_agents?.image || "",
+        nickname: selectedAgentData.nickname || "Amor"
+      };
+      
+      localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+      console.log("Agent data preloaded from user_selected_agent:", agentData);
+      return true;
+    }
+    
+    // Fallback to user_agent_selections table (legacy)
+    const { data: legacyData, error: legacyError } = await supabase
+      .from('user_agent_selections')
+      .select('nickname, agent_id, agents!inner(*)')
+      .eq('user_id', userId)
+      .single();
+      
+    if (!legacyError && legacyData) {
+      const agentData = {
+        id: legacyData.agent_id,
+        name: legacyData.agents?.name || "",
+        image: legacyData.agents?.image || "",
+        nickname: legacyData.nickname || "Amor"
+      };
+      
+      localStorage.setItem("selectedAgent", JSON.stringify(agentData));
+      console.log("Agent data preloaded from user_agent_selections:", agentData);
+      return true;
+    }
+
+    console.log("No agent data found for user:", userId);
     return false;
   } catch (error) {
     console.error("Error preloading agent data:", error);

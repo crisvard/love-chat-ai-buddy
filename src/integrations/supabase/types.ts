@@ -9,6 +9,72 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agents: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          gender: string | null
+          id: string
+          image: string | null
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          gender?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          gender?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ai_agents: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image: string | null
+          is_active: boolean | null
+          name: string
+          personality: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean | null
+          name: string
+          personality?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean | null
+          name?: string
+          personality?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       gifts: {
         Row: {
           created_at: string | null
@@ -93,6 +159,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_agent_selections: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          nickname: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          nickname?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          nickname?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_agent_selections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_purchased_gifts: {
         Row: {
           created_at: string | null
@@ -139,6 +240,41 @@ export type Database = {
             columns: ["gift_id"]
             isOneToOne: false
             referencedRelation: "gifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_selected_agent: {
+        Row: {
+          created_at: string | null
+          id: string
+          nickname: string | null
+          selected_agent_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nickname?: string | null
+          selected_agent_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nickname?: string | null
+          selected_agent_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_selected_agent_selected_agent_id_fkey"
+            columns: ["selected_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
             referencedColumns: ["id"]
           },
         ]
