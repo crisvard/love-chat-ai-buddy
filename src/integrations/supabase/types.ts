@@ -159,6 +159,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          country: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_adult: boolean | null
+          name: string | null
+          stripe_customer_id: string | null
+          terms_accepted: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          is_adult?: boolean | null
+          name?: string | null
+          stripe_customer_id?: string | null
+          terms_accepted?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_adult?: boolean | null
+          name?: string | null
+          stripe_customer_id?: string | null
+          terms_accepted?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_agent_selections: {
         Row: {
           agent_id: string

@@ -197,7 +197,7 @@ export const getCurrentSubscription = async (forceRefresh: boolean = false): Pro
           .from('user_subscriptions')
           .select('plan_id, end_date')
           .eq('user_id', session.user.id)
-          .eq('is_active', true)
+          .eq('status', 'active')
           .maybeSingle();
           
         if (error) {
@@ -363,9 +363,10 @@ export const setCurrentSubscription = async (planId: string, endDate: Date | nul
         .upsert({
           user_id: userId,
           plan_id: planId,
-          start_date: new Date().toISOString(),
-          end_date: endDate ? endDate.toISOString() : null,
-          is_active: true
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: endDate ? endDate.toISOString() : null,
+          end_date: endDate ? endDate.toISOString() : null
         }, { onConflict: 'user_id' });
         
       if (error) {

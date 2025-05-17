@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ interface Plan {
   id: string;
   name: string;
   price: string;
-  duration: string;
+  duration?: string;
   description: string;
   features: string[];
   primaryAction: string;
@@ -38,7 +37,6 @@ const Index = () => {
         const { data, error } = await supabase
           .from('plans')
           .select('*')
-          .order('display_order', { ascending: true })
           .eq('is_active', true);
           
         if (error) throw error;
@@ -50,7 +48,7 @@ const Index = () => {
             id: plan.id,
             name: plan.name,
             price: plan.price.toString(),
-            duration: plan.duration,
+            duration: plan.duration || plan.interval,
             description: plan.description || "",
             features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : [],
             primaryAction: plan.id === "free" ? "Experimente Grátis" : "Assinar",
