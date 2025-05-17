@@ -212,12 +212,15 @@ export const getCurrentSubscription = async (forceRefresh: boolean = false): Pro
           // For other users, fallback to localStorage or default
         } else if (data) {
           console.log("Subscription data from DB:", data);
-          const result = { 
-            planId: data.plan_id, 
-            endDate: data.end_date ? new Date(data.end_date) : null
-          };
-          saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
-          return result;
+          // Handle TypeScript error by checking if data is null or not
+          if (data) {
+            const result = { 
+              planId: data.plan_id, 
+              endDate: data.end_date ? new Date(data.end_date) : null
+            };
+            saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
+            return result;
+          }
         }
       } catch (error) {
         console.error("Error in getCurrentSubscription:", error);

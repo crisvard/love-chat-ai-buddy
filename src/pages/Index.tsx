@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ const Index = () => {
             id: plan.id,
             name: plan.name,
             price: plan.price.toString(),
+            // Handle both duration and interval fields
             duration: plan.duration || plan.interval,
             description: plan.description || "",
             features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : [],
