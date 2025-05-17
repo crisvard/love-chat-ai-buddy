@@ -49,8 +49,8 @@ const Index = () => {
             id: plan.id,
             name: plan.name,
             price: plan.price.toString(),
-            // Handle both duration and interval fields
-            duration: plan.duration || plan.interval,
+            // Use interval as duration since duration doesn't exist in the database schema
+            duration: plan.interval,
             description: plan.description || "",
             features: Array.isArray(plan.features) ? plan.features.map(f => String(f)) : [],
             primaryAction: plan.id === "free" ? "Experimente Grátis" : "Assinar",

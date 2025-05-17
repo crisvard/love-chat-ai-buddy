@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { getFromCache, saveToCache, clearCacheItem, clearCache } from "@/utils/cacheUtils";
@@ -195,7 +194,7 @@ export const getCurrentSubscription = async (forceRefresh: boolean = false): Pro
         // Se não for admin, verificar assinatura normal
         const { data, error } = await supabase
           .from('user_subscriptions')
-          .select('plan_id, end_date')
+          .select('plan_id, current_period_end')
           .eq('user_id', session.user.id)
           .eq('status', 'active')
           .maybeSingle();
@@ -212,15 +211,14 @@ export const getCurrentSubscription = async (forceRefresh: boolean = false): Pro
           // For other users, fallback to localStorage or default
         } else if (data) {
           console.log("Subscription data from DB:", data);
-          // Handle TypeScript error by checking if data is null or not
-          if (data) {
-            const result = { 
-              planId: data.plan_id, 
-              endDate: data.end_date ? new Date(data.end_date) : null
-            };
-            saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
-            return result;
-          }
+          
+          // Use the correct field names from the database schema
+          const result = { 
+            planId: data.plan_id, 
+            endDate: data.current_period_end ? new Date(data.current_period_end) : null
+          };
+          saveToCache(CACHE_KEYS.CURRENT_SUBSCRIPTION, result, CACHE_TTL.SUBSCRIPTION);
+          return result;
         }
       } catch (error) {
         console.error("Error in getCurrentSubscription:", error);
