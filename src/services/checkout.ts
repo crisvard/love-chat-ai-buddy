@@ -1,5 +1,3 @@
-
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentSubscription } from "./subscription";
@@ -84,46 +82,57 @@ export const createCheckout = async (options: CheckoutOptions): Promise<string |
  * Cria um checkout para assinatura de plano usando os price_ids do Stripe diretamente
  */
 export const subscribeToPlan = async (planId: string): Promise<boolean> => {
-  // Mapear planId para price_id do Stripe
-  let stripe_price_id = "";
+  // Verificar se devemos buscar o price_id do banco de dados ou usar o mapeamento fixo
+  console.log("Iniciando checkout para o plano:", planId);
   
-  switch(planId) {
-    case "basic":
-      stripe_price_id = "price_1RP6SHQPvTOtvaP8Xbp5NElV"; // Básico
-      break;
-    case "intermediate":
-      stripe_price_id = "price_1RMxchQPvTOtvaP8pxMzMxE1"; // Intermediário
-      break;
-    case "premium":
-      stripe_price_id = "price_1RP6SHQPvTOtvaP8Xbp5NElV"; // Premium
-      break;
-    default:
-      console.error("ID de plano desconhecido:", planId);
+  try {
+    // Buscar o plano diretamente do banco de dados para obter o price_id
+    const { data: plan, error } = await supabase
+      .from("plans")
+      .select("stripe_price_id, name")
+      .eq("id", planId)
+      .single();
+    
+    if (error) {
+      console.error("Erro ao buscar plano:", error);
+      throw new Error("Não foi possível obter informações do plano");
+    }
+    
+    if (!plan || !plan.stripe_price_id) {
+      console.error("Plano não encontrado ou sem price_id:", planId);
+      toast({
+        title: "Erro ao processar pagamento",
+        description: "ID do plano inválido ou preço não configurado",
+        variant: "destructive"
+      });
       return false;
-  }
-  
-  if (!stripe_price_id) {
+    }
+    
+    console.log(`Usando price_id ${plan.stripe_price_id} para o plano ${plan.name}`);
+    
+    const checkoutUrl = await createCheckout({
+      item_type: 'plan',
+      item_id: planId,
+      stripe_price_id: plan.stripe_price_id
+    });
+    
+    if (!checkoutUrl) {
+      return false;
+    }
+    
+    // Redirecionar para checkout
+    window.open(checkoutUrl, '_blank');
+    return true;
+    
+  } catch (error) {
+    console.error("Erro ao processar subscription:", error);
     toast({
-      title: "Erro ao processar pagamento",
-      description: "ID do plano inválido",
+      title: "Erro ao processar assinatura",
+      description: error instanceof Error ? error.message : "Erro desconhecido",
       variant: "destructive"
     });
     return false;
   }
-  
-  const checkoutUrl = await createCheckout({
-    item_type: 'plan',
-    item_id: planId,
-    stripe_price_id: stripe_price_id
-  });
-  
-  if (!checkoutUrl) {
-    return false;
-  }
-  
-  // Redirecionar para checkout
-  window.open(checkoutUrl, '_blank');
-  return true;
 };
 
 /**
